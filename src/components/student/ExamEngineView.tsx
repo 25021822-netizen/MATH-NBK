@@ -1,17 +1,34 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Exam, Question, CheatLog } from '../../types/math';
+import { Exam, Question, CheatLog, StudentExamSubmission } from '../../types/math';
 import { SAMPLE_EXAM_BGD } from '../../data/mockData';
 import { gradePart2TrueFalse, validatePart3ShortAnswerFormat, isAnswerEquivalent } from '../../lib/scoringEngine';
 import { MathView } from '../MathView';
-import { Clock, ShieldAlert, AlertTriangle, Save, CheckCircle2, XCircle, Award, RotateCcw, Send, FileCheck } from 'lucide-react';
+import { Clock, ShieldAlert, AlertTriangle, Save, CheckCircle2, XCircle, Award, RotateCcw, Send, FileCheck, History } from 'lucide-react';
 
 interface ExamEngineViewProps {
   onRecordCheatLog: (log: CheatLog) => void;
+  examsList?: Exam[];
+  activeExamId?: string;
+  onSelectExamId?: (id: string) => void;
+  onSubmitExam?: (submission: StudentExamSubmission) => void;
+  onViewHistory?: () => void;
+  studentProfile?: { id: string; name: string; email: string };
+  defaultClassId?: string;
 }
 
-export const ExamEngineView: React.FC<ExamEngineViewProps> = ({ onRecordCheatLog }) => {
-  const [exam, setExam] = useState<Exam>(SAMPLE_EXAM_BGD);
-  const [timeLeft, setTimeLeft] = useState<number>(90 * 60); // 90 phút (5400 giây)
+export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
+  onRecordCheatLog,
+  examsList = [SAMPLE_EXAM_BGD],
+  activeExamId,
+  onSelectExamId,
+  onSubmitExam,
+  onViewHistory,
+  studentProfile,
+  defaultClassId = 'cls_12a1',
+}) => {
+  const currentExam = examsList.find((e) => e.id === activeExamId) || examsList[0] || SAMPLE_EXAM_BGD;
+  const [exam, setExam] = useState<Exam>(currentExam);
+  const [timeLeft, setTimeLeft] = useState<number>(currentExam.durationMinutes * 60);
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [infractionCount, setInfractionCount] = useState<number>(0);
   const [showWarningModal, setShowWarningModal] = useState<boolean>(false);
@@ -20,6 +37,19 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({ onRecordCheatLog
   const [isDisqualified, setIsDisqualified] = useState<boolean>(false);
   const [scoreReport, setScoreReport] = useState<any | null>(null);
   const [lastAutoSaved, setLastAutoSaved] = useState<string>('');
+
+  // Cập nhật khi chọn đề thi khác
+  useEffect(() => {
+    if (currentExam.id !== exam.id) {
+      setExam(currentExam);
+      setTimeLeft(currentExam.durationMinutes * 60);
+      setAnswers({});
+      setIsSubmitted(false);
+      setIsDisqualified(false);
+      setInfractionCount(0);
+      setScoreReport(null);
+    }
+  }, [currentExam]);
 
   // 1. Khởi tạo & nạp bản nháp từ LocalStorage (Auto-Save Restore)
   useEffect(() => {
@@ -94,7 +124,7 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({ onRecordCheatLog
     setInfractionCount(nextCount);
 
     const newLog: CheatLog = {
-      id: `cl_${Date.now()}`,
+      id: `cl_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       examId: exam.id,
       examTitle: exam.title,
       studentId: 'usr_student_01',
@@ -183,6 +213,33 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({ onRecordCheatLog
       disqualifyReason,
     });
 
+    const timeSpent = exam.durationMinutes * 60 - timeLeft;
+
+    if (onSubmitExam) {
+      const submission: StudentExamSubmission = {
+        id: `sub_${Date.now()}`,
+        examId: exam.id,
+        examTitle: exam.title,
+        studentId: studentProfile?.id || 'usr_student_01',
+        studentName: studentProfile?.name || 'Nguyễn Văn An',
+        studentEmail: studentProfile?.email || 'an.nguyen@thpt-nbk.edu.vn',
+        classId: defaultClassId,
+        submittedAt: new Date().toISOString(),
+        score: Number(totalScore.toFixed(2)),
+        partScores: {
+          part1: Number(part1Score.toFixed(2)),
+          part2: Number(part2Score.toFixed(2)),
+          part3: Number(part3Score.toFixed(2)),
+          part4: Number(part4Score.toFixed(2)),
+        },
+        answers,
+        infractionCount,
+        isDisqualified: !!disqualifyReason,
+        timeSpentSeconds: timeSpent > 0 ? timeSpent : 60,
+      };
+      onSubmitExam(submission);
+    }
+
     setIsSubmitted(true);
     localStorage.removeItem(`math_draft_${exam.id}`);
   };
@@ -197,11 +254,30 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({ onRecordCheatLog
     <div className="w-full max-w-5xl mx-auto px-4 py-8 space-y-6">
       {/* Top Countdown & Anti-Cheat Sticky Bar */}
       <div className="sticky top-16 z-30 bg-white/95 backdrop-blur-md p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
-        {/* Exam Title & Year */}
-        <div>
-          <span className="text-[11px] font-extrabold uppercase tracking-wider text-blue-600 block">
-            Đề Thi Chuẩn BGD 2025 · Thời Gian: {exam.durationMinutes} Phút
-          </span>
+        {/* Exam Title & Year & Selector */}
+        <div className="flex-1 min-w-[240px]">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-blue-600 block">
+              Đề Thi Chuẩn BGD · Thời Gian: {exam.durationMinutes} Phút
+            </span>
+            {examsList.length > 1 && (
+              <select
+                value={exam.id}
+                onChange={(e) => {
+                  if (onSelectExamId) onSelectExamId(e.target.value);
+                  const chosen = examsList.find((ex) => ex.id === e.target.value);
+                  if (chosen) setExam(chosen);
+                }}
+                className="text-[11px] bg-slate-100 border border-slate-300 rounded-lg px-2 py-0.5 font-bold text-slate-700"
+              >
+                {examsList.map((ex) => (
+                  <option key={ex.id} value={ex.id}>
+                    {ex.title}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
           <h2 className="text-base sm:text-lg font-bold text-slate-900 line-clamp-1">{exam.title}</h2>
         </div>
 
@@ -299,19 +375,30 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({ onRecordCheatLog
             </div>
           </div>
 
-          <button
-            onClick={() => {
-              setIsSubmitted(false);
-              setIsDisqualified(false);
-              setInfractionCount(0);
-              setTimeLeft(90 * 60);
-              setAnswers({});
-            }}
-            className="w-full py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center justify-center gap-2 transition-colors"
-          >
-            <RotateCcw size={15} />
-            <span>Làm Lại Đề Thi Này</span>
-          </button>
+          <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
+            <button
+              onClick={() => {
+                setIsSubmitted(false);
+                setIsDisqualified(false);
+                setInfractionCount(0);
+                setTimeLeft(exam.durationMinutes * 60);
+                setAnswers({});
+              }}
+              className="flex-1 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center justify-center gap-2 transition-colors"
+            >
+              <RotateCcw size={15} />
+              <span>Làm Lại Đề Thi Này</span>
+            </button>
+            {onViewHistory && (
+              <button
+                onClick={onViewHistory}
+                className="flex-1 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs flex items-center justify-center gap-2 transition-colors"
+              >
+                <History size={15} />
+                <span>Xem Tổng Hợp Bài Đã Làm</span>
+              </button>
+            )}
+          </div>
         </div>
       )}
 

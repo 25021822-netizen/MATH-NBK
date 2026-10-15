@@ -548,93 +548,186 @@ export const ExamScreen: React.FC = () => {
 
 export const RN_SCREEN_5_TEACHER_UPLOAD = `
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, SafeAreaView } from 'react-native';
-import { FileUp, CheckCircle2, AlertCircle, FileText, Send, Eye } from 'lucide-react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, SafeAreaView, Alert } from 'react-native';
+import { FileUp, CheckCircle2, AlertCircle, FileText, Send, Eye, Edit3, Plus, Trash2, Save } from 'lucide-react-native';
 
 export const TeacherUploadScreen: React.FC = () => {
+  const [mode, setMode] = useState<'manual' | 'pdf'>('manual');
+  
+  // State Tạo đề thủ công
+  const [examTitle, setExamTitle] = useState('Đề Khảo Sát Toán 12 - THPT NBK');
+  const [questions, setQuestions] = useState<any[]>([
+    {
+      id: '1',
+      part: 'part_1_mcq',
+      prompt: 'Cho hàm số y = f(x) có đạo hàm f\\\'(x) = x(x-1)². Số điểm cực trị là:',
+      correctAnswer: 'A',
+      points: 0.25,
+    },
+    {
+      id: '2',
+      part: 'part_2_true_false',
+      prompt: 'Cho hình chóp S.ABCD đáy hình vuông cạnh a. Xét tính Đúng/Sai:',
+      points: 1.0,
+    },
+    {
+      id: '3',
+      part: 'part_3_short_answer',
+      prompt: 'Tìm giá trị nhỏ nhất của f(x) = x + 4/x trên (0; +\\\\infty):',
+      correctAnswer: '4',
+      points: 0.5,
+    }
+  ]);
+
+  // State PDF
   const [fileName, setFileName] = useState<string | null>(null);
   const [isParsing, setIsParsing] = useState(false);
   const [parsedData, setParsedData] = useState<any | null>(null);
+
+  const handleAddQuestion = (part: string) => {
+    const newQ = {
+      id: Date.now().toString(),
+      part,
+      prompt: \`Câu hỏi mới \${questions.length + 1} chuẩn BGD...\`,
+      points: part === 'part_2_true_false' ? 1.0 : part === 'part_1_mcq' ? 0.25 : 0.5,
+      correctAnswer: 'A',
+    };
+    setQuestions(prev => [...prev, newQ]);
+  };
+
+  const handlePublish = () => {
+    Alert.alert('Xuất bản thành công', \`Đề thi "\${examTitle}" đã được đưa vào hệ thống với \${questions.length} câu hỏi!\`);
+  };
 
   const handlePickAndParsePDF = async () => {
     setIsParsing(true);
     setFileName('De_Thi_Thu_Toan_THPT_2025.pdf');
 
-    // Giả lập bóc tách đề qua Gemini AI API + Zod Validation
     setTimeout(() => {
       setParsedData({
         title: 'Đề Khảo Sát Chất Lượng Toán 12 - Năm Học 2024-2025',
         totalQuestions: 22,
-        partCounts: {
-          part1: 12, // 12 câu trắc nghiệm
-          part2: 4,  // 4 câu Đúng/Sai (mỗi câu 4 ý)
-          part3: 6,  // 6 câu trả lời ngắn
-        },
+        partCounts: { part1: 12, part2: 4, part3: 6 },
         isValidatedByZod: true
       });
       setIsParsing(false);
-    }, 2000);
+    }, 1800);
   };
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <View className="px-6 py-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
-        <Text className="text-xl font-bold text-slate-900 dark:text-white">Cổng Giáo Viên</Text>
-        <Text className="text-xs text-slate-500">Tải lên file PDF đề thi & AI tự động bóc tách cấu trúc 4 phần</Text>
+      {/* Header */}
+      <View className="px-6 py-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex-row items-center justify-between">
+        <View>
+          <Text className="text-xl font-bold text-slate-900 dark:text-white">Cổng Giáo Viên</Text>
+          <Text className="text-xs text-slate-500">Biên soạn thủ công & AI Parser chuẩn BGD 2025</Text>
+        </View>
+
+        {/* Mode switcher */}
+        <View className="flex-row bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+          <TouchableOpacity
+            onPress={() => setMode('manual')}
+            className={\`px-3 py-1.5 rounded-lg \${mode === 'manual' ? 'bg-blue-600' : ''}\`}
+          >
+            <Text className={\`text-xs font-bold \${mode === 'manual' ? 'text-white' : 'text-slate-600'}\`}>Thủ công</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setMode('pdf')}
+            className={\`px-3 py-1.5 rounded-lg \${mode === 'pdf' ? 'bg-blue-600' : ''}\`}
+          >
+            <Text className={\`text-xs font-bold \${mode === 'pdf' ? 'text-white' : 'text-slate-600'}\`}>AI PDF</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 24 }}>
-        {/* Upload Zone */}
-        <TouchableOpacity
-          onPress={handlePickAndParsePDF}
-          className="w-full border-2 border-dashed border-blue-400 bg-blue-50/50 dark:bg-blue-950/20 rounded-3xl p-8 items-center justify-center mb-6"
-        >
-          <FileUp size={48} color="#2563EB" />
-          <Text className="text-base font-bold text-blue-700 dark:text-blue-400 mt-3">
-            Chọn tệp PDF đề thi Toán
-          </Text>
-          <Text className="text-xs text-slate-500 mt-1">Hỗ trợ định dạng PDF chuẩn BGD (Tối đa 25MB)</Text>
-        </TouchableOpacity>
-
-        {isParsing && (
-          <View className="items-center py-6">
-            <ActivityIndicator size="large" color="#2563EB" />
-            <Text className="text-sm font-semibold text-slate-600 mt-3">
-              AI đang đọc nội dung & xác thực theo Zod Schema...
-            </Text>
-          </View>
-        )}
-
-        {/* Parsed Preview Card */}
-        {parsedData && (
-          <View className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
-            <View className="flex-row items-center gap-2 mb-4">
-              <CheckCircle2 size={20} color="#10B981" />
-              <Text className="text-sm font-bold text-emerald-600">Đã bóc tách thành công (Zod Validated)</Text>
+      <ScrollView contentContainerStyle={{ padding: 20 }}>
+        {mode === 'manual' ? (
+          <View>
+            {/* Metadata Card */}
+            <View className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 mb-4">
+              <Text className="text-xs font-bold text-slate-500 mb-1">Tên đề thi:</Text>
+              <TextInput
+                value={examTitle}
+                onChangeText={setExamTitle}
+                className="h-11 px-3 border border-slate-300 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-900 dark:text-white"
+              />
             </View>
 
-            <Text className="text-base font-bold text-slate-900 dark:text-white mb-2">
-              {parsedData.title}
-            </Text>
-
-            <View className="flex-row gap-3 my-4">
-              <View className="flex-1 bg-slate-100 dark:bg-slate-800 p-3 rounded-2xl items-center">
-                <Text className="text-lg font-bold text-blue-600">{parsedData.partCounts.part1}</Text>
-                <Text className="text-[10px] text-slate-500">Phần I (MCQ)</Text>
-              </View>
-              <View className="flex-1 bg-slate-100 dark:bg-slate-800 p-3 rounded-2xl items-center">
-                <Text className="text-lg font-bold text-purple-600">{parsedData.partCounts.part2}</Text>
-                <Text className="text-[10px] text-slate-500">Phần II (Đúng/Sai)</Text>
-              </View>
-              <View className="flex-1 bg-slate-100 dark:bg-slate-800 p-3 rounded-2xl items-center">
-                <Text className="text-lg font-bold text-amber-600">{parsedData.partCounts.part3}</Text>
-                <Text className="text-[10px] text-slate-500">Phần III (Ngắn)</Text>
-              </View>
+            {/* Quick Add Question Toolbar */}
+            <View className="flex-row gap-2 mb-4">
+              <TouchableOpacity
+                onPress={() => handleAddQuestion('part_1_mcq')}
+                className="flex-1 py-2.5 bg-blue-50 dark:bg-blue-950/40 rounded-xl items-center border border-blue-200"
+              >
+                <Text className="text-xs font-bold text-blue-700 dark:text-blue-400">+ Phần 1 (MCQ)</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => handleAddQuestion('part_2_true_false')}
+                className="flex-1 py-2.5 bg-purple-50 dark:bg-purple-950/40 rounded-xl items-center border border-purple-200"
+              >
+                <Text className="text-xs font-bold text-purple-700 dark:text-purple-400">+ Phần 2 (Đ/S)</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => handleAddQuestion('part_3_short_answer')}
+                className="flex-1 py-2.5 bg-amber-50 dark:bg-amber-950/40 rounded-xl items-center border border-amber-200"
+              >
+                <Text className="text-xs font-bold text-amber-700 dark:text-amber-400">+ Phần 3 (Ngắn)</Text>
+              </TouchableOpacity>
             </View>
 
-            <TouchableOpacity className="w-full h-12 bg-blue-600 rounded-2xl items-center justify-center mt-2">
-              <Text className="text-white font-bold text-sm">Phê Duyệt & Xuất Bản Đề Thi</Text>
+            {/* Questions List */}
+            {questions.map((q, idx) => (
+              <View key={q.id} className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 mb-3">
+                <View className="flex-row items-center justify-between mb-2">
+                  <Text className="text-xs font-bold text-blue-600">Câu {idx + 1} ({q.part})</Text>
+                  <TouchableOpacity onPress={() => setQuestions(prev => prev.filter(item => item.id !== q.id))}>
+                    <Trash2 size={16} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
+                <Text className="text-xs font-semibold text-slate-800 dark:text-slate-200">{q.prompt}</Text>
+              </View>
+            ))}
+
+            {/* Publish Button */}
+            <TouchableOpacity
+              onPress={handlePublish}
+              className="w-full h-13 bg-blue-600 rounded-2xl items-center justify-center flex-row gap-2 mt-4"
+            >
+              <Save size={18} color="#FFFFFF" />
+              <Text className="text-white font-bold text-sm">Xuất Bản Đề Thi ({questions.length} câu)</Text>
             </TouchableOpacity>
+          </View>
+        ) : (
+          <View>
+            {/* Upload Zone */}
+            <TouchableOpacity
+              onPress={handlePickAndParsePDF}
+              className="w-full border-2 border-dashed border-blue-400 bg-blue-50/50 dark:bg-blue-950/20 rounded-3xl p-8 items-center justify-center mb-6"
+            >
+              <FileUp size={48} color="#2563EB" />
+              <Text className="text-base font-bold text-blue-700 dark:text-blue-400 mt-3">Chọn tệp PDF đề thi Toán</Text>
+              <Text className="text-xs text-slate-500 mt-1">Hỗ trợ định dạng PDF chuẩn BGD (Tối đa 25MB)</Text>
+            </TouchableOpacity>
+
+            {isParsing && (
+              <View className="items-center py-6">
+                <ActivityIndicator size="large" color="#2563EB" />
+                <Text className="text-sm font-semibold text-slate-600 mt-3">AI đang đọc nội dung & xác thực Zod...</Text>
+              </View>
+            )}
+
+            {parsedData && (
+              <View className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
+                <View className="flex-row items-center gap-2 mb-4">
+                  <CheckCircle2 size={20} color="#10B981" />
+                  <Text className="text-sm font-bold text-emerald-600">Đã bóc tách thành công (Zod Validated)</Text>
+                </View>
+                <Text className="text-base font-bold text-slate-900 dark:text-white mb-2">{parsedData.title}</Text>
+                <TouchableOpacity onPress={handlePublish} className="w-full h-12 bg-blue-600 rounded-2xl items-center justify-center mt-4">
+                  <Text className="text-white font-bold text-sm">Phê Duyệt & Xuất Bản Đề Thi</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         )}
       </ScrollView>

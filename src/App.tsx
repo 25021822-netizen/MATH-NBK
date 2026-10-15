@@ -4,17 +4,35 @@
  */
 
 import React, { useState } from 'react';
-import { UserRole, AccountTier, CheatLog } from './types/math';
-import { INITIAL_USER_PROFILE, SAMPLE_CHEAT_LOGS } from './data/mockData';
+import { UserRole, AccountTier, CheatLog, Exam, Classroom, StudentExamSubmission } from './types/math';
+import {
+  INITIAL_USER_PROFILE,
+  SAMPLE_CHEAT_LOGS,
+  SAMPLE_EXAM_BGD,
+  SAMPLE_CLASSROOMS,
+  SAMPLE_SUBMISSIONS,
+} from './data/mockData';
 import { Navbar } from './components/Navbar';
 import { SkillTreeView } from './components/student/SkillTreeView';
 import { CameraScannerView } from './components/student/CameraScannerView';
 import { SocraticTutorView } from './components/student/SocraticTutorView';
 import { ExamEngineView } from './components/student/ExamEngineView';
+import { StudentHistoryView } from './components/student/StudentHistoryView';
+import { ClassroomManagerView } from './components/classroom/ClassroomManagerView';
 import { TeacherPortalView } from './components/teacher/TeacherPortalView';
+import { TeacherGradebookView } from './components/teacher/TeacherGradebookView';
 import { AdminDashboardView } from './components/admin/AdminDashboardView';
 import { ArchitectureDocsView } from './components/docs/ArchitectureDocsView';
-import { BookOpen, Camera, MessageSquare, Award, FileUp, ShieldCheck, Smartphone } from 'lucide-react';
+import {
+  BookOpen,
+  Camera,
+  MessageSquare,
+  Award,
+  Users,
+  FileCheck,
+  BarChart3,
+  FileText,
+} from 'lucide-react';
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState<string>('home');
@@ -22,6 +40,12 @@ export default function App() {
   const [userProfile, setUserProfile] = useState(INITIAL_USER_PROFILE);
   const [deviceMode, setDeviceMode] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [cheatLogs, setCheatLogs] = useState<CheatLog[]>(SAMPLE_CHEAT_LOGS);
+  const [examsList, setExamsList] = useState<Exam[]>([SAMPLE_EXAM_BGD]);
+  const [activeExamId, setActiveExamId] = useState<string>(SAMPLE_EXAM_BGD.id);
+
+  // Nhóm lớp & Kết quả bài nộp của học sinh
+  const [classrooms, setClassrooms] = useState<Classroom[]>(SAMPLE_CLASSROOMS);
+  const [submissions, setSubmissions] = useState<StudentExamSubmission[]>(SAMPLE_SUBMISSIONS);
 
   const handleToggleTier = () => {
     setUserProfile((prev) => ({
@@ -42,7 +66,25 @@ export default function App() {
     setCheatLogs((prev) => [log, ...prev]);
   };
 
-  // Nội dung màn hình theo tab hiện tại
+  const handlePublishExam = (newExam: Exam) => {
+    setExamsList((prev) => {
+      const filtered = prev.filter((e) => e.id !== newExam.id);
+      return [newExam, ...filtered];
+    });
+    setActiveExamId(newExam.id);
+  };
+
+  // Xử lý nộp bài thi của học sinh: tự động ghi nhận vào submissions & cộng XP
+  const handleAddSubmission = (submission: StudentExamSubmission) => {
+    setSubmissions((prev) => [submission, ...prev]);
+    setUserProfile((prev) => ({
+      ...prev,
+      xp: prev.xp + Math.round(submission.score * 15),
+      streakDays: prev.streakDays + 1,
+    }));
+  };
+
+  // Nội dung màn hình theo tab hiện tại và vai trò người dùng
   const renderCurrentView = () => {
     if (currentTab === 'architecture_docs') {
       return <ArchitectureDocsView />;
@@ -53,10 +95,63 @@ export default function App() {
     }
 
     if (userRole === 'teacher') {
-      if (currentTab === 'exam') {
-        return <ExamEngineView onRecordCheatLog={handleRecordCheatLog} />;
+      if (currentTab === 'classroom') {
+        return (
+          <ClassroomManagerView
+            userRole={userRole}
+            currentUserId="usr_teacher_01"
+            classrooms={classrooms}
+            onUpdateClassrooms={setClassrooms}
+            examsList={examsList}
+            onSelectExamToTake={(examId) => {
+              setActiveExamId(examId);
+              setCurrentTab('exam');
+            }}
+            onViewClassGradebook={() => {
+              setCurrentTab('teacher_gradebook');
+            }}
+          />
+        );
       }
-      return <TeacherPortalView />;
+
+      if (currentTab === 'teacher_gradebook') {
+        return (
+          <TeacherGradebookView
+            classrooms={classrooms}
+            submissions={submissions}
+            examsList={examsList}
+            onSelectClassroom={() => {
+              setCurrentTab('classroom');
+            }}
+            onPreviewExam={(examId) => {
+              setActiveExamId(examId);
+              setCurrentTab('exam');
+            }}
+          />
+        );
+      }
+
+      if (currentTab === 'exam') {
+        return (
+          <ExamEngineView
+            onRecordCheatLog={handleRecordCheatLog}
+            examsList={examsList}
+            activeExamId={activeExamId}
+            onSelectExamId={setActiveExamId}
+          />
+        );
+      }
+
+      // Default for teacher: Teacher Portal (Tạo đề thi thủ công & Tải PDF)
+      return (
+        <TeacherPortalView
+          onPublishExam={handlePublishExam}
+          onPreviewExam={(newExam) => {
+            handlePublishExam(newExam);
+            setCurrentTab('exam');
+          }}
+        />
+      );
     }
 
     // Role: Student
@@ -69,6 +164,34 @@ export default function App() {
             onOpenTutor={() => setCurrentTab('tutor')}
             userXp={userProfile.xp}
             streakDays={userProfile.streakDays}
+          />
+        );
+      case 'classroom':
+        return (
+          <ClassroomManagerView
+            userRole={userRole}
+            currentUserId={userProfile.id}
+            classrooms={classrooms}
+            onUpdateClassrooms={setClassrooms}
+            examsList={examsList}
+            onSelectExamToTake={(examId) => {
+              setActiveExamId(examId);
+              setCurrentTab('exam');
+            }}
+          />
+        );
+      case 'student_history':
+        return (
+          <StudentHistoryView
+            currentStudentId={userProfile.id}
+            submissions={submissions}
+            examsList={examsList}
+            classrooms={classrooms}
+            onRetakeExam={(examId) => {
+              setActiveExamId(examId);
+              setCurrentTab('exam');
+            }}
+            onOpenExamHub={() => setCurrentTab('exam')}
           />
         );
       case 'scanner':
@@ -84,7 +207,18 @@ export default function App() {
       case 'tutor':
         return <SocraticTutorView />;
       case 'exam':
-        return <ExamEngineView onRecordCheatLog={handleRecordCheatLog} />;
+        return (
+          <ExamEngineView
+            onRecordCheatLog={handleRecordCheatLog}
+            examsList={examsList}
+            activeExamId={activeExamId}
+            onSelectExamId={setActiveExamId}
+            onSubmitExam={handleAddSubmission}
+            onViewHistory={() => setCurrentTab('student_history')}
+            studentProfile={{ id: userProfile.id, name: userProfile.name, email: userProfile.email }}
+            defaultClassId="cls_12a1"
+          />
+        );
       default:
         return (
           <SkillTreeView
@@ -105,7 +239,12 @@ export default function App() {
         currentTab={currentTab}
         onSelectTab={setCurrentTab}
         userRole={userRole}
-        onSelectRole={setUserRole}
+        onSelectRole={(newRole) => {
+          setUserRole(newRole);
+          if (newRole === 'student') setCurrentTab('home');
+          else if (newRole === 'teacher') setCurrentTab('classroom');
+          else setCurrentTab('admin_dashboard');
+        }}
         tier={userProfile.tier}
         onToggleTier={handleToggleTier}
         streakDays={userProfile.streakDays}
@@ -139,42 +278,94 @@ export default function App() {
 
             {/* Mobile Bottom Tab Bar */}
             <div className="h-16 bg-white/95 border-t border-slate-200 flex items-center justify-around px-2 relative z-20">
-              <button
-                onClick={() => setCurrentTab('home')}
-                className={`flex flex-col items-center gap-0.5 ${
-                  currentTab === 'home' ? 'text-blue-600 font-bold' : 'text-slate-400'
-                }`}
-              >
-                <BookOpen size={18} />
-                <span className="text-[10px]">Lộ trình</span>
-              </button>
-              <button
-                onClick={() => setCurrentTab('scanner')}
-                className={`flex flex-col items-center gap-0.5 ${
-                  currentTab === 'scanner' ? 'text-blue-600 font-bold' : 'text-slate-400'
-                }`}
-              >
-                <Camera size={18} />
-                <span className="text-[10px]">Quét AI</span>
-              </button>
-              <button
-                onClick={() => setCurrentTab('tutor')}
-                className={`flex flex-col items-center gap-0.5 ${
-                  currentTab === 'tutor' ? 'text-blue-600 font-bold' : 'text-slate-400'
-                }`}
-              >
-                <MessageSquare size={18} />
-                <span className="text-[10px]">Gia sư</span>
-              </button>
-              <button
-                onClick={() => setCurrentTab('exam')}
-                className={`flex flex-col items-center gap-0.5 ${
-                  currentTab === 'exam' ? 'text-blue-600 font-bold' : 'text-slate-400'
-                }`}
-              >
-                <Award size={18} />
-                <span className="text-[10px]">Thi BGD</span>
-              </button>
+              {userRole === 'teacher' ? (
+                <>
+                  <button
+                    onClick={() => setCurrentTab('classroom')}
+                    className={`flex flex-col items-center gap-0.5 ${
+                      currentTab === 'classroom' ? 'text-blue-600 font-bold' : 'text-slate-400'
+                    }`}
+                  >
+                    <Users size={18} />
+                    <span className="text-[10px]">Nhóm Lớp</span>
+                  </button>
+                  <button
+                    onClick={() => setCurrentTab('teacher_gradebook')}
+                    className={`flex flex-col items-center gap-0.5 ${
+                      currentTab === 'teacher_gradebook' ? 'text-blue-600 font-bold' : 'text-slate-400'
+                    }`}
+                  >
+                    <BarChart3 size={18} />
+                    <span className="text-[10px]">Bảng Điểm</span>
+                  </button>
+                  <button
+                    onClick={() => setCurrentTab('teacher_portal')}
+                    className={`flex flex-col items-center gap-0.5 ${
+                      currentTab === 'teacher_portal' ? 'text-blue-600 font-bold' : 'text-slate-400'
+                    }`}
+                  >
+                    <FileText size={18} />
+                    <span className="text-[10px]">Tạo Đề</span>
+                  </button>
+                  <button
+                    onClick={() => setCurrentTab('exam')}
+                    className={`flex flex-col items-center gap-0.5 ${
+                      currentTab === 'exam' ? 'text-blue-600 font-bold' : 'text-slate-400'
+                    }`}
+                  >
+                    <Award size={18} />
+                    <span className="text-[10px]">Phòng Thi</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setCurrentTab('home')}
+                    className={`flex flex-col items-center gap-0.5 ${
+                      currentTab === 'home' ? 'text-blue-600 font-bold' : 'text-slate-400'
+                    }`}
+                  >
+                    <BookOpen size={18} />
+                    <span className="text-[10px]">Lộ trình</span>
+                  </button>
+                  <button
+                    onClick={() => setCurrentTab('classroom')}
+                    className={`flex flex-col items-center gap-0.5 ${
+                      currentTab === 'classroom' ? 'text-blue-600 font-bold' : 'text-slate-400'
+                    }`}
+                  >
+                    <Users size={18} />
+                    <span className="text-[10px]">Nhóm lớp</span>
+                  </button>
+                  <button
+                    onClick={() => setCurrentTab('student_history')}
+                    className={`flex flex-col items-center gap-0.5 ${
+                      currentTab === 'student_history' ? 'text-blue-600 font-bold' : 'text-slate-400'
+                    }`}
+                  >
+                    <FileCheck size={18} />
+                    <span className="text-[10px]">Bài đã làm</span>
+                  </button>
+                  <button
+                    onClick={() => setCurrentTab('scanner')}
+                    className={`flex flex-col items-center gap-0.5 ${
+                      currentTab === 'scanner' ? 'text-blue-600 font-bold' : 'text-slate-400'
+                    }`}
+                  >
+                    <Camera size={18} />
+                    <span className="text-[10px]">Quét AI</span>
+                  </button>
+                  <button
+                    onClick={() => setCurrentTab('exam')}
+                    className={`flex flex-col items-center gap-0.5 ${
+                      currentTab === 'exam' ? 'text-blue-600 font-bold' : 'text-slate-400'
+                    }`}
+                  >
+                    <Award size={18} />
+                    <span className="text-[10px]">Thi BGD</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -185,7 +376,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <p>© 2026 Math&NBK Platform. Hệ thống Giáo dục Toán học THPT Chuẩn Quốc Gia.</p>
           <div className="flex items-center gap-4 text-slate-400">
-            <span>Phiên bản 2.5 (GDPT 2018)</span>
+            <span>Phiên bản 2.6 (GDPT 2018)</span>
             <span>·</span>
             <button
               onClick={() => setCurrentTab('architecture_docs')}

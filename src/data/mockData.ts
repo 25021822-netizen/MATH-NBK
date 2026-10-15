@@ -1,4 +1,15 @@
-import { UserProfile, SkillNode, Exam, ScanResult, CheatLog } from '../types/math';
+import {
+  UserProfile,
+  SkillNode,
+  Exam,
+  ScanResult,
+  CheatLog,
+  Classroom,
+  StudentExamSubmission,
+  ClassroomChatMessage,
+  FriendRequest,
+  FriendRelation,
+} from '../types/math';
 
 export const INITIAL_USER_PROFILE: UserProfile = {
   id: 'usr_student_01',
@@ -451,5 +462,428 @@ export const SAMPLE_CHEAT_LOGS: CheatLog[] = [
     event: 'app_state_blur',
     reason: 'Vi phạm quy chế 3 lần: Thoát màn hình bài thi',
     actionTaken: 'auto_submitted_disqualified',
+  },
+];
+
+export const SAMPLE_STUDENTS: UserProfile[] = [
+  {
+    id: 'usr_student_01',
+    name: 'Nguyễn Văn An',
+    email: 'an.nguyen@thpt-nbk.edu.vn',
+    role: 'student',
+    tier: 'free',
+    xp: 1450,
+    streakDays: 7,
+    lastActiveDate: '2026-10-15',
+    dailyScanCount: 2,
+    maxDailyScans: 10,
+    grade: 12,
+    avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=AnNguyen',
+  },
+  {
+    id: 'usr_student_02',
+    name: 'Trần Hoàng Long',
+    email: 'long.tran@thpt-nbk.edu.vn',
+    role: 'student',
+    tier: 'free',
+    xp: 2100,
+    streakDays: 14,
+    lastActiveDate: '2026-10-15',
+    dailyScanCount: 8,
+    maxDailyScans: 10,
+    grade: 12,
+    avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=HoangLong',
+  },
+  {
+    id: 'usr_student_03',
+    name: 'Lê Thùy Dung',
+    email: 'dung.le@thpt-nbk.edu.vn',
+    role: 'student',
+    tier: 'premium',
+    xp: 3450,
+    streakDays: 22,
+    lastActiveDate: '2026-10-15',
+    dailyScanCount: 15,
+    maxDailyScans: 9999,
+    grade: 12,
+    avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=ThuyDung',
+  },
+  {
+    id: 'usr_student_04',
+    name: 'Phạm Minh Đức',
+    email: 'duc.pham@thpt-nbk.edu.vn',
+    role: 'student',
+    tier: 'free',
+    xp: 1820,
+    streakDays: 9,
+    lastActiveDate: '2026-10-14',
+    dailyScanCount: 3,
+    maxDailyScans: 10,
+    grade: 12,
+    avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=MinhDuc',
+  },
+  {
+    id: 'usr_student_05',
+    name: 'Hoàng Khánh Linh',
+    email: 'linh.hoang@thpt-nbk.edu.vn',
+    role: 'student',
+    tier: 'premium',
+    xp: 2900,
+    streakDays: 18,
+    lastActiveDate: '2026-10-15',
+    dailyScanCount: 6,
+    maxDailyScans: 9999,
+    grade: 12,
+    avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=KhanhLinh',
+  },
+  {
+    id: 'usr_student_06',
+    name: 'Vũ Thanh Tùng',
+    email: 'tung.vu@thpt-nbk.edu.vn',
+    role: 'student',
+    tier: 'free',
+    xp: 1120,
+    streakDays: 4,
+    lastActiveDate: '2026-10-13',
+    dailyScanCount: 1,
+    maxDailyScans: 10,
+    grade: 11,
+    avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=ThanhTung',
+  },
+  {
+    id: 'usr_student_07',
+    name: 'Đỗ Phương Thảo',
+    email: 'thao.do@thpt-nbk.edu.vn',
+    role: 'student',
+    tier: 'free',
+    xp: 980,
+    streakDays: 5,
+    lastActiveDate: '2026-10-12',
+    dailyScanCount: 2,
+    maxDailyScans: 10,
+    grade: 10,
+    avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=PhuongThao',
+  },
+];
+
+export const SAMPLE_CLASSROOMS: Classroom[] = [
+  {
+    id: 'cls_12a1',
+    name: 'Lớp 12A1 Chuyên Toán (Năm học 2025-2026)',
+    code: 'NBK-12A1',
+    grade: 12,
+    teacherId: 'usr_teacher_01',
+    teacherName: 'ThS. Trần Văn Minh',
+    studentIds: ['usr_student_01', 'usr_student_02', 'usr_student_03', 'usr_student_04', 'usr_student_05'],
+    assignedExamIds: ['exam_bgd_2025_01'],
+    createdAt: '2026-09-05',
+    description: 'Lớp chuyên Toán 12, luyện thi Tốt nghiệp THPT Quốc Gia và Đánh giá Năng lực ĐHQG.',
+  },
+  {
+    id: 'cls_11b2',
+    name: 'Lớp 11B2 Ôn Thi Học Sinh Giỏi Cấp Tỉnh',
+    code: 'NBK-11B2',
+    grade: 11,
+    teacherId: 'usr_teacher_01',
+    teacherName: 'ThS. Trần Văn Minh',
+    studentIds: ['usr_student_06'],
+    assignedExamIds: ['exam_bgd_2025_01'],
+    createdAt: '2026-09-10',
+    description: 'Bồi dưỡng chuyên sâu các chuyên đề Lượng giác, Hình học không gian và Giới hạn dãy số.',
+  },
+];
+
+export const SAMPLE_SUBMISSIONS: StudentExamSubmission[] = [
+  {
+    id: 'sub_01',
+    examId: 'exam_bgd_2025_01',
+    examTitle: 'Đề Thi Thử Tốt Nghiệp THPT 2025 - Mã 101',
+    studentId: 'usr_student_01',
+    studentName: 'Nguyễn Văn An',
+    studentEmail: 'an.nguyen@thpt-nbk.edu.vn',
+    classId: 'cls_12a1',
+    submittedAt: '2026-10-14T09:30:00Z',
+    score: 9.25,
+    partScores: { part1: 0.5, part2: 1.0, part3: 1.0, part4: 0.5 },
+    answers: { q1: 'B', q2: 'B', q3_a: true, q3_b: true, q3_c: false, q3_d: true, q4: '4', q5: '18', q6: '10/21' },
+    infractionCount: 0,
+    isDisqualified: false,
+    timeSpentSeconds: 4850,
+  },
+  {
+    id: 'sub_02',
+    examId: 'exam_bgd_2025_01',
+    examTitle: 'Đề Thi Thử Tốt Nghiệp THPT 2025 - Mã 101',
+    studentId: 'usr_student_03',
+    studentName: 'Lê Thùy Dung',
+    studentEmail: 'dung.le@thpt-nbk.edu.vn',
+    classId: 'cls_12a1',
+    submittedAt: '2026-10-14T10:15:00Z',
+    score: 8.75,
+    partScores: { part1: 0.5, part2: 0.5, part3: 1.0, part4: 0.5 },
+    answers: { q1: 'B', q2: 'B', q3_a: true, q3_b: true, q3_c: true, q3_d: true, q4: '4', q5: '18', q6: '0.476' },
+    infractionCount: 0,
+    isDisqualified: false,
+    timeSpentSeconds: 5120,
+  },
+  {
+    id: 'sub_03',
+    examId: 'exam_bgd_2025_01',
+    examTitle: 'Đề Thi Thử Tốt Nghiệp THPT 2025 - Mã 101',
+    studentId: 'usr_student_05',
+    studentName: 'Hoàng Khánh Linh',
+    studentEmail: 'linh.hoang@thpt-nbk.edu.vn',
+    classId: 'cls_12a1',
+    submittedAt: '2026-10-14T11:00:00Z',
+    score: 8.25,
+    partScores: { part1: 0.5, part2: 1.0, part3: 0.5, part4: 0.0 },
+    answers: { q1: 'B', q2: 'B', q3_a: true, q3_b: true, q3_c: false, q3_d: true, q4: '4', q5: '12', q6: '1/2' },
+    infractionCount: 0,
+    isDisqualified: false,
+    timeSpentSeconds: 4900,
+  },
+  {
+    id: 'sub_04',
+    examId: 'exam_bgd_2025_01',
+    examTitle: 'Đề Thi Thử Tốt Nghiệp THPT 2025 - Mã 101',
+    studentId: 'usr_student_02',
+    studentName: 'Trần Hoàng Long',
+    studentEmail: 'long.tran@thpt-nbk.edu.vn',
+    classId: 'cls_12a1',
+    submittedAt: '2026-10-15T08:14:00Z',
+    score: 7.50,
+    partScores: { part1: 0.25, part2: 0.25, part3: 1.0, part4: 0.5 },
+    answers: { q1: 'A', q2: 'B', q3_a: true, q3_b: false, q3_c: false, q3_d: false, q4: '4', q5: '18', q6: '10/21' },
+    infractionCount: 2,
+    isDisqualified: false,
+    timeSpentSeconds: 4200,
+  },
+  {
+    id: 'sub_05',
+    examId: 'exam_bgd_2025_01',
+    examTitle: 'Đề Thi Thử Tốt Nghiệp THPT 2025 - Mã 101',
+    studentId: 'usr_student_04',
+    studentName: 'Phạm Minh Đức',
+    studentEmail: 'duc.pham@thpt-nbk.edu.vn',
+    classId: 'cls_12a1',
+    submittedAt: '2026-10-13T14:20:00Z',
+    score: 6.00,
+    partScores: { part1: 0.25, part2: 0.25, part3: 0.5, part4: 0.0 },
+    answers: { q1: 'C', q2: 'B', q3_a: true, q3_b: false, q3_c: false, q3_d: false, q4: '4', q5: '10', q6: '2/9' },
+    infractionCount: 0,
+    isDisqualified: false,
+    timeSpentSeconds: 5300,
+  },
+];
+
+// ==========================================
+// DANH SÁCH GIÁO VIÊN & TẤT CẢ NGƯỜI DÙNG HỆ THỐNG
+// ==========================================
+export const SAMPLE_TEACHERS: UserProfile[] = [
+  {
+    id: 'usr_teacher_01',
+    name: 'ThS. Trần Văn Minh',
+    email: 'minh.tran@thpt-nbk.edu.vn',
+    role: 'teacher',
+    tier: 'premium',
+    xp: 8900,
+    streakDays: 45,
+    lastActiveDate: '2026-10-15',
+    dailyScanCount: 0,
+    maxDailyScans: 9999,
+    grade: 12,
+    avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=TeacherMinh',
+  },
+  {
+    id: 'usr_teacher_02',
+    name: 'Cô Nguyễn Thị Mai Hoa',
+    email: 'hoa.nguyen@thpt-nbk.edu.vn',
+    role: 'teacher',
+    tier: 'premium',
+    xp: 6400,
+    streakDays: 30,
+    lastActiveDate: '2026-10-14',
+    dailyScanCount: 0,
+    maxDailyScans: 9999,
+    grade: 11,
+    avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=TeacherHoa',
+  },
+  {
+    id: 'usr_teacher_03',
+    name: 'Thầy Lê Quốc Dũng',
+    email: 'dung.le@thpt-nbk.edu.vn',
+    role: 'teacher',
+    tier: 'premium',
+    xp: 7200,
+    streakDays: 38,
+    lastActiveDate: '2026-10-15',
+    dailyScanCount: 0,
+    maxDailyScans: 9999,
+    grade: 10,
+    avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=TeacherDung',
+  },
+];
+
+export const SAMPLE_ADMIN: UserProfile = {
+  id: 'usr_admin_01',
+  name: 'Ban Giám Hiệu - Quản Trị Hệ Thống',
+  email: 'admin@thpt-nbk.edu.vn',
+  role: 'admin',
+  tier: 'premium',
+  xp: 15000,
+  streakDays: 120,
+  lastActiveDate: '2026-10-15',
+  dailyScanCount: 0,
+  maxDailyScans: 9999,
+  grade: 12,
+  avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=AdminNBK',
+};
+
+// Tổng hợp người dùng hệ thống (chỉ admin có quyền tạo mới tài khoản cho giáo viên và học sinh)
+export const INITIAL_ALL_USERS: UserProfile[] = [
+  SAMPLE_ADMIN,
+  ...SAMPLE_TEACHERS,
+  ...SAMPLE_STUDENTS,
+];
+
+// ==========================================
+// MẪU TIN NHẮN CHAT TRONG NHÓM LỚP (GỬI ẢNH, TAG TÊN)
+// ==========================================
+export const INITIAL_CLASSROOM_MESSAGES: Record<string, ClassroomChatMessage[]> = {
+  cls_12a1: [
+    {
+      id: 'msg_01',
+      classId: 'cls_12a1',
+      senderId: 'usr_teacher_01',
+      senderName: 'ThS. Trần Văn Minh',
+      senderRole: 'teacher',
+      senderAvatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=TeacherMinh',
+      content: 'Chào cả lớp 12A1! Thầy vừa giao đề thi thử tốt nghiệp THPT 2025 mã 101. Các em lưu ý hạn chót làm bài là 22h tối nay nhé!',
+      timestamp: '2026-10-14T08:00:00Z',
+    },
+    {
+      id: 'msg_02',
+      classId: 'cls_12a1',
+      senderId: 'usr_student_01',
+      senderName: 'Nguyễn Văn An',
+      senderRole: 'student',
+      senderAvatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=AnNguyen',
+      content: 'Dạ vâng ạ! @ThS. Trần Văn Minh thầy ơi câu 6 phần trả lời ngắn bài toán thực tế bể nước có phải dùng công thức V = B.h không ạ?',
+      mentions: [
+        { userId: 'usr_teacher_01', userName: 'ThS. Trần Văn Minh' }
+      ],
+      timestamp: '2026-10-14T08:15:00Z',
+    },
+    {
+      id: 'msg_03',
+      classId: 'cls_12a1',
+      senderId: 'usr_teacher_01',
+      senderName: 'ThS. Trần Văn Minh',
+      senderRole: 'teacher',
+      senderAvatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=TeacherMinh',
+      content: '@Nguyễn Văn An Đúng rồi em nhé, em xem sơ đồ thầy vẽ minh họa mặt cắt không gian dưới này:',
+      imageUrl: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=600&auto=format&fit=crop&q=80',
+      mentions: [
+        { userId: 'usr_student_01', userName: 'Nguyễn Văn An' }
+      ],
+      timestamp: '2026-10-14T08:20:00Z',
+    },
+    {
+      id: 'msg_04',
+      classId: 'cls_12a1',
+      senderId: 'usr_student_03',
+      senderName: 'Lê Thùy Dung',
+      senderRole: 'student',
+      senderAvatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=ThuyDung',
+      content: '@Nguyễn Văn An @Trần Hoàng Long lát 2 cậu ôn lại phần tiệm cận xiên không, mình vừa giải xong đề 101 được 8.75 nè!',
+      mentions: [
+        { userId: 'usr_student_01', userName: 'Nguyễn Văn An' },
+        { userId: 'usr_student_02', userName: 'Trần Hoàng Long' }
+      ],
+      timestamp: '2026-10-14T10:30:00Z',
+    },
+  ],
+  cls_11b2: [
+    {
+      id: 'msg_11_01',
+      classId: 'cls_11b2',
+      senderId: 'usr_teacher_01',
+      senderName: 'ThS. Trần Văn Minh',
+      senderRole: 'teacher',
+      senderAvatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=TeacherMinh',
+      content: 'Chào các bạn đội tuyển Toán 11! Hôm nay chúng ta tập trung chuyên đề phương trình lượng giác nâng cao nhé.',
+      timestamp: '2026-10-13T14:00:00Z',
+    },
+  ],
+};
+
+// ==========================================
+// MẪU KẾT BẠN QUA ID
+// GV - GV, HS - HS, GV - HS
+// ==========================================
+export const INITIAL_FRIEND_RELATIONS: FriendRelation[] = [
+  // 1. HS kết bạn với HS (Nguyễn Văn An <-> Lê Thùy Dung)
+  {
+    id: 'fr_01',
+    userId1: 'usr_student_01',
+    userId2: 'usr_student_03',
+    friendedAt: '2026-09-15',
+  },
+  // 2. HS kết bạn với HS (Nguyễn Văn An <-> Trần Hoàng Long)
+  {
+    id: 'fr_02',
+    userId1: 'usr_student_01',
+    userId2: 'usr_student_02',
+    friendedAt: '2026-09-18',
+  },
+  // 3. GV kết bạn với HS (ThS. Trần Văn Minh <-> Nguyễn Văn An)
+  {
+    id: 'fr_03',
+    userId1: 'usr_teacher_01',
+    userId2: 'usr_student_01',
+    friendedAt: '2026-09-10',
+  },
+  // 4. GV kết bạn với GV (ThS. Trần Văn Minh <-> Cô Nguyễn Thị Mai Hoa)
+  {
+    id: 'fr_04',
+    userId1: 'usr_teacher_01',
+    userId2: 'usr_teacher_02',
+    friendedAt: '2026-08-20',
+  },
+  // 5. GV kết bạn với GV (ThS. Trần Văn Minh <-> Thầy Lê Quốc Dũng)
+  {
+    id: 'fr_05',
+    userId1: 'usr_teacher_01',
+    userId2: 'usr_teacher_03',
+    friendedAt: '2026-08-22',
+  },
+];
+
+export const INITIAL_FRIEND_REQUESTS: FriendRequest[] = [
+  // Lời mời gửi đến usr_student_01 từ học sinh khác
+  {
+    id: 'freq_01',
+    fromUserId: 'usr_student_05',
+    fromUserName: 'Hoàng Khánh Linh',
+    fromUserRole: 'student',
+    fromUserEmail: 'linh.hoang@thpt-nbk.edu.vn',
+    fromUserAvatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=KhanhLinh',
+    toUserId: 'usr_student_01',
+    toUserName: 'Nguyễn Văn An',
+    timestamp: '2026-10-15T07:30:00Z',
+    status: 'pending',
+  },
+  // Lời mời kết bạn từ giáo viên khác gửi đến ThS. Trần Văn Minh (GV kết bạn GV)
+  {
+    id: 'freq_02',
+    fromUserId: 'usr_teacher_03',
+    fromUserName: 'Thầy Lê Quốc Dũng',
+    fromUserRole: 'teacher',
+    fromUserEmail: 'dung.le@thpt-nbk.edu.vn',
+    fromUserAvatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=TeacherDung',
+    toUserId: 'usr_student_01',
+    toUserName: 'Nguyễn Văn An',
+    timestamp: '2026-10-14T16:00:00Z',
+    status: 'pending',
   },
 ];

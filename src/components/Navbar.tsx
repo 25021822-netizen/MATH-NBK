@@ -1,6 +1,6 @@
 import React from 'react';
 import { UserRole, AccountTier } from '../types/math';
-import { BookOpen, Flame, Zap, Smartphone, Monitor, Tablet, Sparkles } from 'lucide-react';
+import { BookOpen, Flame, Zap, Smartphone, Monitor, Tablet, Sparkles, UserCheck, Users } from 'lucide-react';
 
 interface NavbarProps {
   currentTab: string;
@@ -13,6 +13,9 @@ interface NavbarProps {
   xp: number;
   deviceMode: 'desktop' | 'tablet' | 'mobile';
   onSelectDeviceMode: (mode: 'desktop' | 'tablet' | 'mobile') => void;
+  onOpenFriendsModal?: () => void;
+  friendsCount?: number;
+  pendingRequestsCount?: number;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -26,6 +29,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   xp,
   deviceMode,
   onSelectDeviceMode,
+  onOpenFriendsModal,
+  friendsCount = 0,
+  pendingRequestsCount = 0,
 }) => {
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200">
@@ -56,7 +62,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Zone 2: Navigation Links (Single-line, whitespace-nowrap) */}
-        <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
+        <nav className="hidden md:flex items-center gap-5 text-sm font-medium text-slate-600">
           {userRole === 'student' && (
             <>
               <button
@@ -68,6 +74,26 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }`}
               >
                 Lộ Trình Học
+              </button>
+              <button
+                onClick={() => onSelectTab('classroom')}
+                className={`whitespace-nowrap transition-colors py-1 ${
+                  currentTab === 'classroom'
+                    ? 'text-blue-600 font-bold border-b-2 border-blue-600'
+                    : 'hover:text-slate-900'
+                }`}
+              >
+                Nhóm Lớp
+              </button>
+              <button
+                onClick={() => onSelectTab('student_history')}
+                className={`whitespace-nowrap transition-colors py-1 ${
+                  currentTab === 'student_history'
+                    ? 'text-blue-600 font-bold border-b-2 border-blue-600'
+                    : 'hover:text-slate-900'
+                }`}
+              >
+                Bài Đã Làm
               </button>
               <button
                 onClick={() => onSelectTab('scanner')}
@@ -105,6 +131,26 @@ export const Navbar: React.FC<NavbarProps> = ({
           {userRole === 'teacher' && (
             <>
               <button
+                onClick={() => onSelectTab('classroom')}
+                className={`whitespace-nowrap transition-colors py-1 ${
+                  currentTab === 'classroom'
+                    ? 'text-blue-600 font-bold border-b-2 border-blue-600'
+                    : 'hover:text-slate-900'
+                }`}
+              >
+                Quản Lý Nhóm Lớp
+              </button>
+              <button
+                onClick={() => onSelectTab('teacher_gradebook')}
+                className={`whitespace-nowrap transition-colors py-1 ${
+                  currentTab === 'teacher_gradebook'
+                    ? 'text-blue-600 font-bold border-b-2 border-blue-600'
+                    : 'hover:text-slate-900'
+                }`}
+              >
+                Tổng Hợp Điểm Thi
+              </button>
+              <button
                 onClick={() => onSelectTab('teacher_portal')}
                 className={`whitespace-nowrap transition-colors py-1 ${
                   currentTab === 'teacher_portal'
@@ -112,7 +158,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     : 'hover:text-slate-900'
                 }`}
               >
-                Tải Đề Thi PDF & AI Parser
+                Tạo Đề Thi & Tải PDF
               </button>
               <button
                 onClick={() => onSelectTab('exam')}
@@ -197,7 +243,25 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Smartphone size={15} />
             </button>
-          </div>
+          {/* Friends Network Button (GV-GV, HS-HS, GV-HS) */}
+          {onOpenFriendsModal && (
+            <button
+              onClick={onOpenFriendsModal}
+              title="Mạng lưới kết bạn qua ID (GV-GV, HS-HS, GV-HS)"
+              className="relative px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold flex items-center gap-1.5 transition-colors whitespace-nowrap shadow-xs"
+            >
+              <UserCheck size={15} />
+              <span className="hidden sm:inline">Bạn Bè</span>
+              {friendsCount > 0 && (
+                <span className="text-[10px] bg-blue-600 text-white px-1.5 py-0.2 rounded-full font-mono font-bold">
+                  {friendsCount}
+                </span>
+              )}
+              {pendingRequestsCount > 0 && (
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 absolute -top-1 -right-1 animate-pulse" />
+              )}
+            </button>
+          )}
 
           {/* Role Switcher Pill */}
           <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">

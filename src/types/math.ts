@@ -183,3 +183,83 @@ export interface ScanResult {
   source: 'cache' | 'gemini_vision';
   processingTimeMs: number;
 }
+
+export interface Classroom {
+  id: string;
+  name: string;
+  code: string;
+  grade: 10 | 11 | 12;
+  teacherId: string;
+  teacherName: string;
+  studentIds: string[];
+  assignedExamIds: string[];
+  createdAt: string;
+  description?: string;
+}
+
+export interface StudentExamSubmission {
+  id: string;
+  examId: string;
+  examTitle: string;
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  classId: string;
+  submittedAt: string;
+  score: number;
+  partScores: {
+    part1: number;
+    part2: number;
+    part3: number;
+    part4: number;
+  };
+  answers: Record<string, any>;
+  infractionCount: number;
+  isDisqualified: boolean;
+  timeSpentSeconds: number;
+}
+
+// ==========================================
+// CHAT TRONG NHÓM LỚP (GỬI ẢNH & TAG TÊN)
+// ==========================================
+export interface ChatMention {
+  userId: string;
+  userName: string;
+}
+
+export interface ClassroomChatMessage {
+  id: string;
+  classId: string;
+  senderId: string;
+  senderName: string;
+  senderRole: UserRole;
+  senderAvatar?: string;
+  content: string;
+  imageUrl?: string;
+  mentions?: ChatMention[];
+  timestamp: string;
+}
+
+// ==========================================
+// HỆ THỐNG KẾT BẠN QUA ID
+// (GV - GV, HS - HS, GV - HS)
+// ==========================================
+export interface FriendRequest {
+  id: string;
+  fromUserId: string;
+  fromUserName: string;
+  fromUserRole: UserRole;
+  fromUserEmail: string;
+  fromUserAvatar?: string;
+  toUserId: string;
+  toUserName?: string;
+  timestamp: string;
+  status: 'pending' | 'accepted' | 'declined';
+}
+
+export interface FriendRelation {
+  id: string;
+  userId1: string;
+  userId2: string;
+  friendedAt: string;
+}

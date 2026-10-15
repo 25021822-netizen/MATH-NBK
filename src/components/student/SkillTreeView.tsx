@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { SkillNode } from '../../types/math';
+import { SkillNode, UserRole } from '../../types/math';
 import { SAMPLE_SKILL_TREES } from '../../data/mockData';
-import { Award, CheckCircle2, Lock, Star, Trophy, Flame, Play, ChevronRight, Sparkles, X } from 'lucide-react';
+import { Award, CheckCircle2, Lock, Star, Trophy, Flame, Play, ChevronRight, Sparkles, X, ShieldAlert } from 'lucide-react';
 
 interface SkillTreeViewProps {
   onStartExam: () => void;
@@ -9,6 +9,8 @@ interface SkillTreeViewProps {
   onOpenTutor: () => void;
   userXp: number;
   streakDays: number;
+  userRole?: UserRole;
+  studentGrade?: 10 | 11 | 12;
 }
 
 export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
@@ -17,8 +19,14 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
   onOpenTutor,
   userXp,
   streakDays,
+  userRole = 'student',
+  studentGrade = 12,
 }) => {
-  const [selectedGrade, setSelectedGrade] = useState<10 | 11 | 12>(12);
+  // Đối với học sinh: chỉ nhìn được lộ trình của khối mình học thôi
+  const isStudent = userRole === 'student';
+  const initialGrade = isStudent ? studentGrade : 12;
+  const [selectedGrade, setSelectedGrade] = useState<10 | 11 | 12>(initialGrade);
+  const [lockedGradeNotice, setLockedGradeNotice] = useState<number | null>(null);
   const [activeNode, setActiveNode] = useState<SkillNode | null>(null);
   const [showLessonModal, setShowLessonModal] = useState<boolean>(false);
   const [lessonProgress, setLessonProgress] = useState<number>(0);
@@ -83,19 +91,41 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-3 rounded-2xl border border-slate-200">
         {/* Grade tabs */}
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          {([10, 11, 12] as const).map((grade) => (
-            <button
-              key={grade}
-              onClick={() => setSelectedGrade(grade)}
-              className={`flex-1 sm:flex-initial px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${
-                selectedGrade === grade
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              }`}
-            >
-              Lớp {grade}
-            </button>
-          ))}
+          {([10, 11, 12] as const).map((grade) => {
+            const isMyGrade = grade === studentGrade;
+            const isLockedForStudent = isStudent && !isMyGrade;
+
+            return (
+              <button
+                key={grade}
+                type="button"
+                onClick={() => {
+                  if (isLockedForStudent) {
+                    setLockedGradeNotice(grade);
+                    setTimeout(() => setLockedGradeNotice(null), 4000);
+                    return;
+                  }
+                  setSelectedGrade(grade);
+                  setLockedGradeNotice(null);
+                }}
+                className={`flex-1 sm:flex-initial px-4 sm:px-6 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 ${
+                  selectedGrade === grade
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : isLockedForStudent
+                    ? 'bg-slate-50 text-slate-400 hover:bg-slate-100 border border-dashed border-slate-200 cursor-not-allowed'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                {isLockedForStudent && <Lock size={13} className="text-slate-400" />}
+                <span>Lớp {grade}</span>
+                {isStudent && isMyGrade && (
+                  <span className="text-[10px] bg-white/20 px-1.5 py-0.2 rounded font-semibold ml-1">
+                    Khối của bạn
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* Quick Progress Summary */}
@@ -112,8 +142,25 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
             <span className="w-3 h-3 rounded-full bg-slate-300" />
             <span>Khóa</span>
           </div>
-        </div>
       </div>
+
+      {/* Thông báo học sinh chỉ được xem khối của mình */}
+      {lockedGradeNotice && (
+        <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold flex items-center justify-between gap-3 animate-in fade-in duration-200">
+          <div className="flex items-center gap-2">
+            <ShieldAlert size={18} className="text-amber-600 shrink-0" />
+            <span>
+              Theo quy chế, học sinh chỉ có thể nhìn được lộ trình của khối mình học (Lớp {studentGrade}). Khối {lockedGradeNotice} bị khóa để đảm bảo chuẩn kiến thức GDPT 2018.
+            </span>
+          </div>
+          <button
+            onClick={() => setLockedGradeNotice(null)}
+            className="text-amber-600 hover:text-amber-800 p-1"
+          >
+            <X size={15} />
+          </button>
+        </div>
+      )}
 
       {/* Duolingo Style Skill Tree Pathway */}
       <div className="relative py-12 flex flex-col items-center">
