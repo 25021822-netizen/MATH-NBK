@@ -243,6 +243,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Smartphone size={15} />
             </button>
+          </div>
+
           {/* Friends Network Button (GV-GV, HS-HS, GV-HS) */}
           {onOpenFriendsModal && (
             <button

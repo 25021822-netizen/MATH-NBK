@@ -142,6 +142,7 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
             <span className="w-3 h-3 rounded-full bg-slate-300" />
             <span>Khóa</span>
           </div>
+        </div>
       </div>
 
       {/* Thông báo học sinh chỉ được xem khối của mình */}
