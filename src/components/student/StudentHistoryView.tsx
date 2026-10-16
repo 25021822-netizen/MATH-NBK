@@ -350,7 +350,7 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
                 <div className="text-right">
                   <span className="text-xs text-slate-400 font-semibold block">Điểm số:</span>
                   <span className="text-2xl font-black font-mono text-blue-600">
-                    {selectedSubmission.score.toFixed(2)}/10
+                    {selectedSubmission.score.toFixed(2)} / {activeExam.totalPoints} điểm
                   </span>
                 </div>
                 <button
@@ -380,7 +380,7 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
                   const dAns = selectedSubmission.answers[`${q.id}_d`];
                   studentDisplayAns = `a:${aAns ? 'Đ' : 'S'}, b:${bAns ? 'Đ' : 'S'}, c:${cAns ? 'Đ' : 'S'}, d:${dAns ? 'Đ' : 'S'}`;
                   correctDisplayAns = q.items.map((it) => `${it.subKey}:${it.isCorrect ? 'Đ' : 'S'}`).join(', ');
-                } else if (q.part === 'part_3_short_answer' || q.part === 'part_4_essay') {
+                } else if (q.part === 'part_3_short_answer') {
                   studentDisplayAns = selectedSubmission.answers[q.id] || 'Chưa trả lời';
                   correctDisplayAns = q.correctAnswer;
                   isQuestionCorrect = studentDisplayAns.toString().trim() === correctDisplayAns.toString().trim();
@@ -401,15 +401,20 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
                             ? 'Trắc nghiệm 4 lựa chọn'
                             : q.part === 'part_2_true_false'
                             ? 'Đúng/Sai 4 ý'
-                            : q.part === 'part_3_short_answer'
-                            ? 'Trả lời ngắn'
-                            : 'Tự luận / Số học'}
+                            : 'Trả lời ngắn'}
                         </span>
                       </div>
                       <span className="font-semibold text-slate-500">Thang điểm: {q.points}đ</span>
                     </div>
 
                     <p className="font-semibold text-slate-900">{q.prompt}</p>
+
+                    {/* Ảnh đính kèm nếu có */}
+                    {q.imageAttachment && (
+                      <div className="p-2 bg-slate-50 rounded-xl border border-slate-200 inline-block">
+                        <img src={q.imageAttachment} alt="Ảnh đề bài" className="max-h-40 rounded-lg object-contain bg-white" />
+                      </div>
+                    )}
 
                     {q.latex && (
                       <div className="p-2.5 bg-slate-50 rounded-xl">

@@ -5,10 +5,12 @@ import {
   ScanResult,
   CheatLog,
   Classroom,
+  ClassroomLesson,
   StudentExamSubmission,
   ClassroomChatMessage,
   FriendRequest,
   FriendRelation,
+  SocraticMessage,
 } from '../types/math';
 
 export const INITIAL_USER_PROFILE: UserProfile = {
@@ -24,6 +26,10 @@ export const INITIAL_USER_PROFILE: UserProfile = {
   maxDailyScans: 10,
   grade: 12,
   avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=AnNguyen',
+  schoolName: 'THPT Chuyên Nguyễn Bỉnh Khiêm',
+  phone: '0912 345 678',
+  bio: 'Học sinh lớp 12 chuyên Toán, định hướng thi khối A00 và kỳ thi Đánh giá Năng lực.',
+  subject: 'Toán Học THPT',
 };
 
 export const SAMPLE_SKILL_TREES: Record<10 | 11 | 12, SkillNode[]> = {
@@ -304,6 +310,36 @@ export const SAMPLE_OCR_PROBLEMS: {
   },
 ];
 
+export const SAMPLE_SCAN_RESULTS: ScanResult[] = SAMPLE_OCR_PROBLEMS.map((p) => p.solution);
+
+export const SAMPLE_SOCRATIC_MESSAGES: SocraticMessage[] = [
+  {
+    id: 'm1',
+    role: 'assistant',
+    content:
+      'Xin chào bạn! Mình là Gia sư Socratic của Math&NBK. Theo phương pháp vấn đáp Socratic, mình sẽ không giải hộ bài toán, mà sẽ đặt câu hỏi dẫn dắt để giúp bạn tự khám phá bản chất kiến thức.',
+    timestamp: '08:30',
+  },
+  {
+    id: 'm2',
+    role: 'user',
+    content: 'Làm thế nào để tìm cực trị của hàm số y = x³ - 3x + 1 vậy thầy?',
+    timestamp: '08:31',
+  },
+  {
+    id: 'm3',
+    role: 'assistant',
+    content:
+      'Để tìm cực trị của một hàm số đa thức, chúng ta hãy nhớ lại định lý dấu đạo hàm. Đầu tiên, bạn hãy tính đạo hàm f\'(x) xem bằng bao nhiêu nhé?',
+    latex: "y' = (x^3 - 3x + 1)' = ?",
+    graphHint: {
+      equation: 'y = x^3 - 3x + 1',
+      label: 'Đồ thị minh họa hàm số bậc ba có 2 cực trị',
+    },
+    timestamp: '08:31',
+  },
+];
+
 export const SAMPLE_EXAM_BGD: Exam = {
   id: 'exam_bgd_2025_01',
   title: 'Đề Thi Thử Tốt Nghiệp THPT 2025 - Môn Toán (Mã Đề 101)',
@@ -314,8 +350,13 @@ export const SAMPLE_EXAM_BGD: Exam = {
   status: 'approved',
   createdBy: 'ThS. Trần Văn Minh - Tổ Toán THPT Chuyên',
   createdAt: '2026-03-15T08:00:00Z',
+  maxAttempts: 2, // Giới hạn tối đa 2 lượt làm bài
+  openTime: '2026-03-01T07:00', // Thời gian mở đề
+  closeTime: '2026-12-31T23:59', // Thời gian đóng đề
+  distributionType: 'both', // Giao cho cả nhóm lớp và kho đề tổng hợp
+  targetClassIds: ['cls_12a1', 'cls_12a2'],
   questions: [
-    // PHẦN I: TRẮC NGHIỆM 4 PHƯƠNG ÁN (Mỗi câu 0.25đ)
+    // PHẦN I: TRẮC NGHIỆM 4 PHƯƠNG ÁN (1.5 điểm mỗi câu)
     {
       id: 'q1',
       part: 'part_1_mcq',
@@ -330,7 +371,7 @@ export const SAMPLE_EXAM_BGD: Exam = {
       ],
       correctAnswer: 'B',
       explanation: 'Đạo hàm đổi dấu khi qua nghiệm bội lẻ x = 0 và x = -2. Nghiệm x = 1 là nghiệm bội chẵn nên không đổi dấu. Vậy có 2 điểm cực trị.',
-      points: 0.25,
+      points: 1.5,
     },
     {
       id: 'q2',
@@ -346,16 +387,17 @@ export const SAMPLE_EXAM_BGD: Exam = {
       ],
       correctAnswer: 'B',
       explanation: 'Áp dụng công thức nguyên hàm cơ bản: ∫ e^(ax) dx = (1/a)e^(ax) + C và ∫ x² dx = x³/3 + C.',
-      points: 0.25,
+      points: 1.5,
     },
 
-    // PHẦN II: TRẮC NGHIỆM ĐÚNG/SAI 4 Ý (Tối đa 1.0đ - Lũy tiến 0.1 -> 0.25 -> 0.5 -> 1.0)
+    // PHẦN II: TRẮC NGHIỆM ĐÚNG/SAI 4 Ý (Tối đa 4.0 điểm)
     {
       id: 'q3',
       part: 'part_2_true_false',
       questionNumber: 3,
       prompt: 'Cho hàm số phân thức hữu tỉ y = (x² - 2x + 2) / (x - 1). Xét tính Đúng/Sai của các mệnh đề sau:',
       latex: 'y = \\frac{x^2 - 2x + 2}{x - 1}',
+      imageAttachment: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=600&auto=format&fit=crop&q=80',
       items: [
         {
           id: 'q3_a',
@@ -386,10 +428,10 @@ export const SAMPLE_EXAM_BGD: Exam = {
         },
       ],
       explanation: 'Ta có y = x - 1 + 1/(x-1). Khi x -> ±∞ thì 1/(x-1) -> 0 => tiệm cận xiên y = x - 1 (Đúng). Đạo hàm y\' > 0 khi x < 0 hoặc x > 2, nên không đồng biến trên toàn D (Sai).',
-      points: 1.0,
+      points: 4.0,
     },
 
-    // PHẦN III: CÂU TRẢ LỜI NGẮN (Tối đa 4 ký tự/chữ số) (Mỗi câu 0.5đ)
+    // PHẦN III: CÂU TRẢ LỜI NGẮN (Tối đa 4 ký tự/chữ số) (1.5 điểm mỗi câu)
     {
       id: 'q4',
       part: 'part_3_short_answer',
@@ -398,7 +440,7 @@ export const SAMPLE_EXAM_BGD: Exam = {
       latex: 'f(x) = x + \\frac{4}{x}, \\quad x > 0',
       correctAnswer: '4',
       explanation: 'Áp dụng bất đẳng thức Cô-si (AM-GM) cho hai số dương x và 4/x: x + 4/x ≥ 2√(x · 4/x) = 4. Dấu "=" xảy ra khi x = 4/x ⇔ x = 2 > 0.',
-      points: 0.5,
+      points: 1.5,
     },
     {
       id: 'q5',
@@ -408,20 +450,8 @@ export const SAMPLE_EXAM_BGD: Exam = {
       latex: 'V = B \\cdot h',
       correctAnswer: '18',
       explanation: 'V = B · h = 6a² · 3a = 18a³ => k = 18.',
-      points: 0.5,
-    },
-
-    // PHẦN IV: TỰ LUẬN NGẮN / KẾT QUẢ SỐ HỌC (Chuẩn hóa tự động) (Mỗi câu 0.5đ)
-    {
-      id: 'q6',
-      part: 'part_4_essay',
-      questionNumber: 6,
-      prompt: 'Một hộp chứa 5 quả cầu màu đỏ và 4 quả cầu màu xanh. Lấy ngẫu nhiên đồng thời 3 quả cầu. Tính xác suất để lấy được đúng 2 quả cầu màu đỏ. (Nhập đáp án dạng phân số tối giản a/b hoặc số thập phân):',
-      latex: 'P(A) = \\frac{C_5^2 \\cdot C_4^1}{C_9^3}',
-      correctAnswer: '10/21',
-      acceptedVariants: ['10/21', '0.476', '0,476', '20/42'],
-      explanation: 'Không gian mẫu n(Ω) = C_9^3 = 84. Số kết quả thuận lợi n(A) = C_5^2 · C_4^1 = 10 · 4 = 40. Xác suất P(A) = 40/84 = 10/21 ≈ 0.4762.',
-      points: 0.5,
+      points: 1.5,
+      pdfAttachmentName: 'Chuyen_De_Hinh_Lang_Tru.pdf',
     },
   ],
 };
@@ -603,9 +633,9 @@ export const SAMPLE_SUBMISSIONS: StudentExamSubmission[] = [
     studentEmail: 'an.nguyen@thpt-nbk.edu.vn',
     classId: 'cls_12a1',
     submittedAt: '2026-10-14T09:30:00Z',
-    score: 9.25,
-    partScores: { part1: 0.5, part2: 1.0, part3: 1.0, part4: 0.5 },
-    answers: { q1: 'B', q2: 'B', q3_a: true, q3_b: true, q3_c: false, q3_d: true, q4: '4', q5: '18', q6: '10/21' },
+    score: 9.50,
+    partScores: { part1: 3.0, part2: 3.5, part3: 3.0 },
+    answers: { q1: 'B', q2: 'B', q3_a: true, q3_b: true, q3_c: false, q3_d: true, q4: '4', q5: '18' },
     infractionCount: 0,
     isDisqualified: false,
     timeSpentSeconds: 4850,
@@ -619,9 +649,9 @@ export const SAMPLE_SUBMISSIONS: StudentExamSubmission[] = [
     studentEmail: 'dung.le@thpt-nbk.edu.vn',
     classId: 'cls_12a1',
     submittedAt: '2026-10-14T10:15:00Z',
-    score: 8.75,
-    partScores: { part1: 0.5, part2: 0.5, part3: 1.0, part4: 0.5 },
-    answers: { q1: 'B', q2: 'B', q3_a: true, q3_b: true, q3_c: true, q3_d: true, q4: '4', q5: '18', q6: '0.476' },
+    score: 8.50,
+    partScores: { part1: 3.0, part2: 2.5, part3: 3.0 },
+    answers: { q1: 'B', q2: 'B', q3_a: true, q3_b: true, q3_c: true, q3_d: true, q4: '4', q5: '18' },
     infractionCount: 0,
     isDisqualified: false,
     timeSpentSeconds: 5120,
@@ -635,9 +665,9 @@ export const SAMPLE_SUBMISSIONS: StudentExamSubmission[] = [
     studentEmail: 'linh.hoang@thpt-nbk.edu.vn',
     classId: 'cls_12a1',
     submittedAt: '2026-10-14T11:00:00Z',
-    score: 8.25,
-    partScores: { part1: 0.5, part2: 1.0, part3: 0.5, part4: 0.0 },
-    answers: { q1: 'B', q2: 'B', q3_a: true, q3_b: true, q3_c: false, q3_d: true, q4: '4', q5: '12', q6: '1/2' },
+    score: 8.00,
+    partScores: { part1: 3.0, part2: 3.5, part3: 1.5 },
+    answers: { q1: 'B', q2: 'B', q3_a: true, q3_b: true, q3_c: false, q3_d: true, q4: '4', q5: '12' },
     infractionCount: 0,
     isDisqualified: false,
     timeSpentSeconds: 4900,
@@ -651,9 +681,9 @@ export const SAMPLE_SUBMISSIONS: StudentExamSubmission[] = [
     studentEmail: 'long.tran@thpt-nbk.edu.vn',
     classId: 'cls_12a1',
     submittedAt: '2026-10-15T08:14:00Z',
-    score: 7.50,
-    partScores: { part1: 0.25, part2: 0.25, part3: 1.0, part4: 0.5 },
-    answers: { q1: 'A', q2: 'B', q3_a: true, q3_b: false, q3_c: false, q3_d: false, q4: '4', q5: '18', q6: '10/21' },
+    score: 7.00,
+    partScores: { part1: 1.5, part2: 2.5, part3: 3.0 },
+    answers: { q1: 'A', q2: 'B', q3_a: true, q3_b: false, q3_c: false, q3_d: false, q4: '4', q5: '18' },
     infractionCount: 2,
     isDisqualified: false,
     timeSpentSeconds: 4200,
@@ -667,9 +697,9 @@ export const SAMPLE_SUBMISSIONS: StudentExamSubmission[] = [
     studentEmail: 'duc.pham@thpt-nbk.edu.vn',
     classId: 'cls_12a1',
     submittedAt: '2026-10-13T14:20:00Z',
-    score: 6.00,
-    partScores: { part1: 0.25, part2: 0.25, part3: 0.5, part4: 0.0 },
-    answers: { q1: 'C', q2: 'B', q3_a: true, q3_b: false, q3_c: false, q3_d: false, q4: '4', q5: '10', q6: '2/9' },
+    score: 5.50,
+    partScores: { part1: 1.5, part2: 2.5, part3: 1.5 },
+    answers: { q1: 'C', q2: 'B', q3_a: true, q3_b: false, q3_c: false, q3_d: false, q4: '4', q5: '10' },
     infractionCount: 0,
     isDisqualified: false,
     timeSpentSeconds: 5300,
@@ -885,5 +915,98 @@ export const INITIAL_FRIEND_REQUESTS: FriendRequest[] = [
     toUserName: 'Nguyễn Văn An',
     timestamp: '2026-10-14T16:00:00Z',
     status: 'pending',
+  },
+];
+
+// ==========================================
+// MẪU BÀI HỌC VÀ CHUYÊN ĐỀ THEO NHÓM LỚP
+// ==========================================
+export const SAMPLE_CLASSROOM_LESSONS: ClassroomLesson[] = [
+  {
+    id: 'les_01',
+    classId: 'cls_12a1',
+    title: 'Chuyên đề 1: Cực trị hàm số chứa dấu giá trị tuyệt đối',
+    chapter: 'Chương 1: Ứng dụng đạo hàm khảo sát hàm số',
+    description: 'Phương pháp đếm nhanh số điểm cực trị của hàm $g(x) = |f(x)|$ và $g(x) = f(|x|)$.',
+    content: `### 1. Lý thuyết trọng tâm
+- Cho hàm số $y = f(x)$ có đạo hàm liên tục trên $\\mathbb{R}$.
+- Số điểm cực trị của hàm $y = |f(x)|$ bằng $m + n$, trong đó:
+  + $m$: số điểm cực trị của hàm số $y = f(x)$.
+  + $n$: số nghiệm bội lẻ (đơn) của phương trình $f(x) = 0$.
+- Đồ thị $y = |f(x)|$ được suy ra bằng cách: giữ nguyên phần đồ thị phía trên trục hoành $Ox$, lấy đối xứng phần đồ thị phía dưới qua trục $Ox$.
+
+### 2. Ví dụ áp dụng
+Cho $f(x) = x^3 - 3x^2 + 2$. Tìm số cực trị của hàm $y = |f(x)|$.
+- $f'(x) = 3x^2 - 6x = 0 \\Leftrightarrow x = 0$ hoặc $x = 2$ ($m = 2$).
+- $f(x) = 0 \\Leftrightarrow (x-1)(x^2-2x-2)=0 \\Rightarrow 3$ nghiệm phân biệt ($n = 3$).
+- Kết luận: hàm số $y = |f(x)|$ có $2 + 3 = 5$ điểm cực trị.`,
+    teacherName: 'ThS. Trần Văn Minh',
+    createdAt: '2026-10-10',
+    attachments: [
+      {
+        name: 'ChuyenDe1_CucTri_TriTuyetDoi_NBK.pdf',
+        type: 'pdf',
+        url: '#',
+        size: '1.4 MB',
+      },
+      {
+        name: 'SoDoTuDuy_DaoHam_12A1.png',
+        type: 'image',
+        url: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=600&auto=format&fit=crop&q=80',
+        size: '520 KB',
+      },
+    ],
+    exercisesCount: 15,
+    completedStudentIds: ['usr_student_01', 'usr_student_03'],
+  },
+  {
+    id: 'les_02',
+    classId: 'cls_12a1',
+    title: 'Chuyên đề 2: Tọa độ hóa Oxyz giải bài toán khoảng cách và góc',
+    chapter: 'Chương 2: Phương pháp tọa độ trong không gian',
+    description: 'Kỹ thuật gắn hệ trục tọa độ Oxyz vào khối đa diện (chóp, lăng trụ) để giải quyết bài toán tính khoảng cách điểm đến mặt phẳng.',
+    content: `### 1. Phương pháp tọa độ hóa
+- Chọn gốc tọa độ $O$: thường chọn đỉnh có góc vuông (hoặc chân đường cao của hình chóp/lăng trụ).
+- Xác định 3 trục $Ox, Oy, Oz$ đôi một vuông góc.
+- Viết tọa độ các đỉnh của khối đa diện.
+- Lập phương trình mặt phẳng $(P): Ax + By + Cz + D = 0$.
+- Áp dụng công thức khoảng cách từ $M(x_0, y_0, z_0)$ đến $(P)$:
+  $$d(M, (P)) = \\frac{|Ax_0 + By_0 + Cz_0 + D|}{\\sqrt{A^2 + B^2 + C^2}}$$`,
+    teacherName: 'ThS. Trần Văn Minh',
+    createdAt: '2026-10-12',
+    attachments: [
+      {
+        name: 'KyThuat_ToaDoHoa_Oxyz.pdf',
+        type: 'pdf',
+        url: '#',
+        size: '2.1 MB',
+      },
+    ],
+    exercisesCount: 12,
+    completedStudentIds: ['usr_student_01'],
+  },
+  {
+    id: 'les_03',
+    classId: 'cls_11b2',
+    title: 'Chuyên đề 1: Phương trình lượng giác biến đổi về bậc hai',
+    chapter: 'Chương 1: Hàm số và phương trình lượng giác',
+    description: 'Các dạng phương trình lượng giác đưa về dạng thuần nhất bậc hai hoặc đặt ẩn phụ $t = \\sin x \\pm \\cos x$.',
+    content: `### Phương pháp đặt ẩn phụ đối xứng
+- Dạng phương trình: $a(\\sin x \\pm \\cos x) + b\\sin x \\cos x + c = 0$.
+- Đặt $t = \\sin x + \\cos x = \\sqrt{2}\\sin(x + \\frac{\\pi}{4})$. Điều kiện $|t| \\le \\sqrt{2}$.
+- Ta có $t^2 = 1 + 2\\sin x\\cos x \\Rightarrow \\sin x\\cos x = \\frac{t^2 - 1}{2}$.
+- Thay vào phương trình ban đầu ta được phương trình bậc hai theo $t$.`,
+    teacherName: 'ThS. Trần Văn Minh',
+    createdAt: '2026-10-11',
+    attachments: [
+      {
+        name: 'LuongGiac_11B2_ChuyenDe.pdf',
+        type: 'pdf',
+        url: '#',
+        size: '1.8 MB',
+      },
+    ],
+    exercisesCount: 10,
+    completedStudentIds: [],
   },
 ];

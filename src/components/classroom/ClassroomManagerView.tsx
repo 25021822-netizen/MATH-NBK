@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { Classroom, UserProfile, UserRole, Exam, ClassroomChatMessage, ChatMention } from '../../types/math';
-import { SAMPLE_STUDENTS } from '../../data/mockData';
+import { Classroom, ClassroomLesson, UserProfile, UserRole, Exam, ClassroomChatMessage, ChatMention } from '../../types/math';
+import { SAMPLE_STUDENTS, SAMPLE_CLASSROOM_LESSONS } from '../../data/mockData';
+import { MathView } from '../MathView';
 import {
   Users,
   UserPlus,
@@ -30,6 +31,10 @@ import {
   UserCheck,
   ShieldAlert,
   Sparkles,
+  Paperclip,
+  Download,
+  BookMarked,
+  Trash2,
 } from 'lucide-react';
 
 interface ClassroomManagerViewProps {
@@ -40,6 +45,7 @@ interface ClassroomManagerViewProps {
   classrooms: Classroom[];
   onUpdateClassrooms: (updated: Classroom[]) => void;
   examsList: Exam[];
+  onUpdateExamsList?: (exams: Exam[]) => void;
   onSelectExamToTake?: (examId: string) => void;
   onViewClassGradebook?: (classId: string) => void;
   allUsers?: UserProfile[];
@@ -47,6 +53,8 @@ interface ClassroomManagerViewProps {
   onSendChatMessage?: (message: ClassroomChatMessage) => void;
   onQuickAddFriend?: (targetUserId: string) => void;
   friendIds?: string[];
+  classroomLessons?: ClassroomLesson[];
+  onUpdateLessons?: (updated: ClassroomLesson[]) => void;
 }
 
 export const ClassroomManagerView: React.FC<ClassroomManagerViewProps> = ({
@@ -57,6 +65,7 @@ export const ClassroomManagerView: React.FC<ClassroomManagerViewProps> = ({
   classrooms,
   onUpdateClassrooms,
   examsList,
+  onUpdateExamsList,
   onSelectExamToTake,
   onViewClassGradebook,
   allUsers = SAMPLE_STUDENTS,
@@ -70,6 +79,8 @@ export const ClassroomManagerView: React.FC<ClassroomManagerViewProps> = ({
   const [showCreateClassModal, setShowCreateClassModal] = useState<boolean>(false);
   const [showAddStudentModal, setShowAddStudentModal] = useState<boolean>(false);
   const [studentToRemove, setStudentToRemove] = useState<{ id: string; name: string } | null>(null);
+  const [examToRemoveFromClass, setExamToRemoveFromClass] = useState<Exam | null>(null);
+  const [examActionSuccess, setExamActionSuccess] = useState<string | null>(null);
   const [hasCopiedCode, setHasCopiedCode] = useState<boolean>(false);
 
   // State tạo lớp mới
@@ -229,6 +240,44 @@ export const ClassroomManagerView: React.FC<ClassroomManagerViewProps> = ({
 
     onUpdateClassrooms(updatedClassrooms);
     setStudentToRemove(null);
+  };
+
+  // 3b. Giáo viên XÓA đề thi đã giao cho học sinh ở trong nhóm lớp
+  const handleConfirmRemoveExamFromClass = () => {
+    if (!currentClass || !examToRemoveFromClass) return;
+
+    const examIdToRemove = examToRemoveFromClass.id;
+
+    // Cập nhật danh sách đề thi giao trong Classroom
+    const updatedClassrooms = classrooms.map((cls) => {
+      if (cls.id === currentClass.id) {
+        return {
+          ...cls,
+          assignedExamIds: cls.assignedExamIds.filter((id) => id !== examIdToRemove),
+        };
+      }
+      return cls;
+    });
+
+    onUpdateClassrooms(updatedClassrooms);
+
+    // Nếu đề thi có gắn targetClassIds thì gỡ ID lớp này ra
+    if (onUpdateExamsList) {
+      const updatedExams = examsList.map((ex) => {
+        if (ex.id === examIdToRemove && ex.targetClassIds) {
+          return {
+            ...ex,
+            targetClassIds: ex.targetClassIds.filter((cid) => cid !== currentClass.id),
+          };
+        }
+        return ex;
+      });
+      onUpdateExamsList(updatedExams);
+    }
+
+    setExamActionSuccess(`Đã xóa đề "${examToRemoveFromClass.title}" khỏi danh sách giao cho lớp ${currentClass.name}!`);
+    setTimeout(() => setExamActionSuccess(null), 4000);
+    setExamToRemoveFromClass(null);
   };
 
   // 4. Học sinh tham gia lớp học bằng mã Code (VD: NBK-12A1)
@@ -566,41 +615,111 @@ export const ClassroomManagerView: React.FC<ClassroomManagerViewProps> = ({
 
             {/* Assigned Exams Card */}
             <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 shadow-xs">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <div className="flex items-center gap-2">
-                  <Award size={20} className="text-amber-500" />
-                  <h3 className="font-extrabold text-base text-slate-900">Đề Thi Giao Cho Lớp</h3>
-                </div>
-                <span className="text-xs text-slate-400">{currentClass.assignedExamIds.length} đề thi</span>
-              </div>
+              {(() => {
+                const combinedExamIds = Array.from(
+                  new Set([
+                    ...currentClass.assignedExamIds,
+                    ...examsList
+                      .filter(
+                        (e) =>
+                          (e.targetClassIds && e.targetClassIds.includes(currentClass.id)) ||
+                          e.distributionType === 'both'
+                      )
+                      .map((e) => e.id),
+                  ])
+                );
 
-              <div className="space-y-2.5">
-                {currentClass.assignedExamIds.map((examId) => {
-                  const examObj = examsList.find((e) => e.id === examId);
-                  return (
-                    <div
-                      key={examId}
-                      className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3 text-xs"
-                    >
-                      <div>
-                        <h4 className="font-bold text-slate-900">{examObj?.title || 'Đề Thi Thử THPT'}</h4>
-                        <span className="text-slate-400 text-[11px]">
-                          {examObj?.questions.length || 6} câu hỏi · {examObj?.durationMinutes || 90} phút
-                        </span>
+                return (
+                  <>
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <Award size={20} className="text-amber-500" />
+                        <h3 className="font-extrabold text-base text-slate-900">Đề Thi Giao Cho Lớp</h3>
                       </div>
+                      <span className="text-xs text-blue-600 font-bold bg-blue-50 px-2.5 py-0.5 rounded-full">
+                        {combinedExamIds.length} đề thi
+                      </span>
+                    </div>
 
-                      {userRole === 'student' && onSelectExamToTake && (
-                        <button
-                          onClick={() => onSelectExamToTake(examId)}
-                          className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] shadow-xs whitespace-nowrap"
-                        >
-                          Làm Bài Ngay
-                        </button>
+                    <div className="space-y-2.5">
+                      {combinedExamIds.length === 0 ? (
+                        <p className="text-xs text-slate-400 italic py-2">Chưa có đề thi nào được giao cho nhóm lớp này.</p>
+                      ) : (
+                        combinedExamIds.map((examId) => {
+                          const examObj = examsList.find((e) => e.id === examId);
+                          if (!examObj) return null;
+
+                          return (
+                            <div
+                              key={examId}
+                              className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                            >
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <h4 className="font-bold text-slate-900">{examObj.title}</h4>
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">
+                                    {examObj.totalPoints} điểm
+                                  </span>
+                                  {examObj.maxAttempts && examObj.maxAttempts > 0 && (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">
+                                      Tối đa {examObj.maxAttempts} lượt
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-slate-400 text-[11px] flex items-center gap-2 flex-wrap">
+                                  <span>{examObj.questions.length} câu hỏi</span>
+                                  <span>·</span>
+                                  <span>{examObj.durationMinutes} phút</span>
+                                  {examObj.closeTime && (
+                                    <>
+                                      <span>·</span>
+                                      <span className="text-rose-600 font-semibold">
+                                        Hạn nộp: {new Date(examObj.closeTime).toLocaleDateString('vi-VN')}
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2 self-end sm:self-auto">
+                                {userRole === 'student' && onSelectExamToTake && (
+                                  <button
+                                    onClick={() => onSelectExamToTake(examId)}
+                                    className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] shadow-xs whitespace-nowrap"
+                                  >
+                                    Làm Bài Ngay
+                                  </button>
+                                )}
+                                {userRole === 'teacher' && (
+                                  <div className="flex items-center gap-1.5">
+                                    {onSelectExamToTake && (
+                                      <button
+                                        onClick={() => onSelectExamToTake(examId)}
+                                        className="px-3 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-[11px] whitespace-nowrap"
+                                      >
+                                        Xem Đề
+                                      </button>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => setExamToRemoveFromClass(examObj)}
+                                      className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-bold text-[11px] flex items-center gap-1 shadow-xs transition-colors whitespace-nowrap"
+                                      title="Xóa đề này khỏi danh sách đề đã giao cho nhóm lớp"
+                                    >
+                                      <Trash2 size={13} />
+                                      <span>Xóa khỏi lớp</span>
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })
                       )}
                     </div>
-                  );
-                })}
-              </div>
+                  </>
+                );
+              })()}
 
               {userRole === 'teacher' && examsList.length > currentClass.assignedExamIds.length && (
                 <div className="pt-2">
@@ -1259,6 +1378,46 @@ export const ClassroomManagerView: React.FC<ClassroomManagerViewProps> = ({
               </button>
               <button
                 onClick={confirmRemoveStudent}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-xs"
+              >
+                Xác Nhận Xóa
+              </button>
+            </div>
+          </div>
+        </div>
+      {/* ========================================================================= */}
+      {/* MODAL 4: XÁC NHẬN GIÁO VIÊN XÓA ĐỀ THI ĐÃ GIAO KHỎI LỚP                   */}
+      {/* ========================================================================= */}
+      {examToRemoveFromClass && currentClass && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+              <Trash2 size={24} />
+            </div>
+
+            <div className="text-center space-y-1.5">
+              <h4 className="text-base font-black text-slate-900">Xóa Đề Thi Đã Giao Khỏi Lớp?</h4>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Thầy/Cô có chắc chắn muốn xóa đề thi{' '}
+                <strong className="text-slate-900 font-bold">"{examToRemoveFromClass.title}"</strong>{' '}
+                khỏi nhóm lớp <strong className="text-blue-600 font-bold">{currentClass.name}</strong> không?
+              </p>
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-[11px] text-left">
+                ⚠️ <strong>Lưu ý:</strong> Sau khi xóa, học sinh trong nhóm lớp này sẽ không còn thấy đề thi trong danh sách làm bài. Điểm số các bài đã nộp trước đó vẫn được lưu trữ trong Bảng Điểm.
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setExamToRemoveFromClass(null)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50"
+              >
+                Hủy Bỏ
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmRemoveExamFromClass}
                 className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-xs"
               >
                 Xác Nhận Xóa

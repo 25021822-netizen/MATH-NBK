@@ -55,23 +55,10 @@ export const QuestionPart3Schema = z.object({
   points: z.number().positive().default(0.5),
 });
 
-export const QuestionPart4Schema = z.object({
-  id: z.string().default(() => Math.random().toString(36).substring(2, 9)),
-  part: z.literal('part_4_essay'),
-  questionNumber: z.number().int().positive(),
-  prompt: z.string().min(1, 'Nội dung câu hỏi không được để trống'),
-  latex: z.string().optional(),
-  correctAnswer: z.string().min(1, 'Đáp án chuẩn hóa không được để trống'),
-  acceptedVariants: z.array(z.string()).default([]),
-  explanation: z.string().default(''),
-  points: z.number().positive().default(0.5),
-});
-
 export const ExamQuestionSchema = z.discriminatedUnion('part', [
   QuestionPart1Schema,
   QuestionPart2Schema,
   QuestionPart3Schema,
-  QuestionPart4Schema,
 ]);
 
 export const ExamMetadataSchema = z.object({
