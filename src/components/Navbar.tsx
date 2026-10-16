@@ -99,16 +99,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 Bài Đã Làm
               </button>
               <button
-                onClick={() => onSelectTab('exam')}
-                className={`whitespace-nowrap transition-colors py-1 ${
-                  currentTab === 'exam'
-                    ? 'text-blue-600 font-bold border-b-2 border-blue-600'
-                    : 'hover:text-slate-900'
-                }`}
-              >
-                Thi Thử BGD
-              </button>
-              <button
                 onClick={() => onSelectTab('geometry')}
                 className={`whitespace-nowrap transition-colors py-1 flex items-center gap-1 ${
                   currentTab === 'geometry'

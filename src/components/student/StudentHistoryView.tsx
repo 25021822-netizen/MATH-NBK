@@ -296,7 +296,14 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
                       <span>Xem Lại</span>
                     </button>
                     <button
-                      onClick={() => onRetakeExam(sub.examId)}
+                      onClick={() => {
+                        try {
+                          if (document.documentElement.requestFullscreen) {
+                            document.documentElement.requestFullscreen().catch(() => {});
+                          }
+                        } catch (e) {}
+                        onRetakeExam(sub.examId);
+                      }}
                       className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-colors"
                     >
                       <RotateCcw size={15} />
@@ -313,14 +320,14 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
           <BookOpen size={48} className="mx-auto text-slate-300" />
           <h3 className="font-extrabold text-slate-700 text-base">Chưa có bài thi nào được ghi nhận</h3>
           <p className="text-xs text-slate-400 max-w-md mx-auto">
-            Bạn chưa hoàn thành bài thi thử nào. Hãy vào làm đề thi chuẩn BGD để trải nghiệm thi thật và lưu lịch sử bài làm tại đây nhé!
+            Bạn chưa hoàn thành bài tập hoặc bài kiểm tra nào. Hãy vào Nhóm lớp để làm các bài tập do thầy cô giao nhé!
           </p>
           <div className="pt-2">
             <button
               onClick={onOpenExamHub}
               className="px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs"
             >
-              Làm Đề Thi Ngay
+              Vào Nhóm Lớp
             </button>
           </div>
         </div>

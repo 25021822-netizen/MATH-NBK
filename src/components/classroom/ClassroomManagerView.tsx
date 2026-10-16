@@ -35,6 +35,15 @@ import {
   Download,
   BookMarked,
   Trash2,
+  FolderPlus,
+  Layers,
+  ListChecks,
+  FileText,
+  ChevronDown,
+  ChevronUp,
+  CheckCircle,
+  ExternalLink,
+  BookCheck,
 } from 'lucide-react';
 
 interface ClassroomManagerViewProps {
@@ -684,7 +693,14 @@ export const ClassroomManagerView: React.FC<ClassroomManagerViewProps> = ({
                               <div className="flex items-center gap-2 self-end sm:self-auto">
                                 {userRole === 'student' && onSelectExamToTake && (
                                   <button
-                                    onClick={() => onSelectExamToTake(examId)}
+                                    onClick={() => {
+                                      try {
+                                        if (document.documentElement.requestFullscreen) {
+                                          document.documentElement.requestFullscreen().catch(() => {});
+                                        }
+                                      } catch (e) {}
+                                      onSelectExamToTake(examId);
+                                    }}
                                     className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] shadow-xs whitespace-nowrap"
                                   >
                                     Làm Bài Ngay
@@ -1385,6 +1401,8 @@ export const ClassroomManagerView: React.FC<ClassroomManagerViewProps> = ({
             </div>
           </div>
         </div>
+      )}
+
       {/* ========================================================================= */}
       {/* MODAL 4: XÁC NHẬN GIÁO VIÊN XÓA ĐỀ THI ĐÃ GIAO KHỎI LỚP                   */}
       {/* ========================================================================= */}

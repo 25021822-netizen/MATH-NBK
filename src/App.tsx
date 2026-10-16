@@ -4,13 +4,14 @@
  */
 
 import React, { useState } from 'react';
-import { UserRole, AccountTier, CheatLog, Exam, Classroom, StudentExamSubmission } from './types/math';
+import { UserRole, AccountTier, CheatLog, Exam, Classroom, StudentExamSubmission, ClassroomLesson } from './types/math';
 import {
   INITIAL_USER_PROFILE,
   SAMPLE_CHEAT_LOGS,
   SAMPLE_EXAM_BGD,
   SAMPLE_CLASSROOMS,
   SAMPLE_SUBMISSIONS,
+  SAMPLE_CLASSROOM_LESSONS,
 } from './data/mockData';
 import { Navbar } from './components/Navbar';
 import { AIMathStudioView } from './components/student/AIMathStudioView';
@@ -45,9 +46,10 @@ export default function App() {
   const [examsList, setExamsList] = useState<Exam[]>([SAMPLE_EXAM_BGD]);
   const [activeExamId, setActiveExamId] = useState<string>(SAMPLE_EXAM_BGD.id);
 
-  // Nhóm lớp & Kết quả bài nộp của học sinh
+  // Nhóm lớp, Bài học & Kết quả bài nộp của học sinh
   const [classrooms, setClassrooms] = useState<Classroom[]>(SAMPLE_CLASSROOMS);
   const [submissions, setSubmissions] = useState<StudentExamSubmission[]>(SAMPLE_SUBMISSIONS);
+  const [classroomLessons, setClassroomLessons] = useState<ClassroomLesson[]>(SAMPLE_CLASSROOM_LESSONS);
 
   const handleToggleTier = () => {
     setUserProfile((prev) => ({
@@ -131,6 +133,8 @@ export default function App() {
             onViewClassGradebook={() => {
               setCurrentTab('teacher_gradebook');
             }}
+            classroomLessons={classroomLessons}
+            onUpdateLessons={setClassroomLessons}
           />
         );
       }
@@ -160,6 +164,7 @@ export default function App() {
             activeExamId={activeExamId}
             onSelectExamId={setActiveExamId}
             submissions={submissions}
+            onExitExam={() => setCurrentTab('classroom')}
           />
         );
       }
@@ -206,6 +211,8 @@ export default function App() {
               setActiveExamId(examId);
               setCurrentTab('exam');
             }}
+            classroomLessons={classroomLessons}
+            onUpdateLessons={setClassroomLessons}
           />
         );
       case 'student_history':
@@ -219,7 +226,7 @@ export default function App() {
               setActiveExamId(examId);
               setCurrentTab('exam');
             }}
-            onOpenExamHub={() => setCurrentTab('exam')}
+            onOpenExamHub={() => setCurrentTab('classroom')}
           />
         );
       case 'exam':
@@ -231,6 +238,7 @@ export default function App() {
             onSelectExamId={setActiveExamId}
             onSubmitExam={handleAddSubmission}
             onViewHistory={() => setCurrentTab('student_history')}
+            onExitExam={() => setCurrentTab('classroom')}
             studentProfile={{ id: userProfile.id, name: userProfile.name, email: userProfile.email }}
             defaultClassId="cls_12a1"
             submissions={submissions}
@@ -254,30 +262,34 @@ export default function App() {
     }
   };
 
+  const isExamMode = currentTab === 'exam';
+
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col font-sans text-slate-900">
-      {/* Top Bar */}
-      <Navbar
-        currentTab={currentTab}
-        onSelectTab={setCurrentTab}
-        userRole={userRole}
-        onSelectRole={(newRole) => {
-          setUserRole(newRole);
-          if (newRole === 'student') setCurrentTab('ask_ai');
-          else if (newRole === 'teacher') setCurrentTab('classroom');
-          else setCurrentTab('admin_dashboard');
-        }}
-        tier={userProfile.tier}
-        onToggleTier={handleToggleTier}
-        streakDays={userProfile.streakDays}
-        xp={userProfile.xp}
-        deviceMode={deviceMode}
-        onSelectDeviceMode={setDeviceMode}
-      />
+      {/* Top Bar (ẨN HOÀN TOÀN KHI VÀO LÀM BÀI ĐỂ CHỈ HIỂN THỊ NỘI DUNG ĐỀ THI) */}
+      {!isExamMode && (
+        <Navbar
+          currentTab={currentTab}
+          onSelectTab={setCurrentTab}
+          userRole={userRole}
+          onSelectRole={(newRole) => {
+            setUserRole(newRole);
+            if (newRole === 'student') setCurrentTab('ask_ai');
+            else if (newRole === 'teacher') setCurrentTab('classroom');
+            else setCurrentTab('admin_dashboard');
+          }}
+          tier={userProfile.tier}
+          onToggleTier={handleToggleTier}
+          streakDays={userProfile.streakDays}
+          xp={userProfile.xp}
+          deviceMode={deviceMode}
+          onSelectDeviceMode={setDeviceMode}
+        />
+      )}
 
-      {/* Main Content Area (With optional Smartphone/Tablet device frames) */}
-      <main className="flex-1 flex justify-center py-4 sm:py-8 px-2 sm:px-4">
-        {deviceMode === 'desktop' ? (
+      {/* Main Content Area (100% toàn màn hình khi làm bài, không khung viền thừa) */}
+      <main className={`flex-1 flex justify-center ${isExamMode ? 'w-full p-0' : 'py-4 sm:py-8 px-2 sm:px-4'}`}>
+        {isExamMode || deviceMode === 'desktop' ? (
           <div className="w-full">{renderCurrentView()}</div>
         ) : deviceMode === 'tablet' ? (
           // Tablet Frame (iPad Style 768px)
@@ -298,123 +310,127 @@ export default function App() {
             {/* Scrollable Screen Content */}
             <div className="flex-1 overflow-y-auto pb-16">{renderCurrentView()}</div>
 
-            {/* Mobile Bottom Tab Bar */}
-            <div className="h-16 bg-white/95 border-t border-slate-200 flex items-center justify-around px-2 relative z-20">
-              {userRole === 'teacher' ? (
-                <>
-                  <button
-                    onClick={() => setCurrentTab('classroom')}
-                    className={`flex flex-col items-center gap-0.5 ${
-                      currentTab === 'classroom' ? 'text-blue-600 font-bold' : 'text-slate-400'
-                    }`}
-                  >
-                    <Users size={18} />
-                    <span className="text-[10px]">Nhóm Lớp</span>
-                  </button>
-                  <button
-                    onClick={() => setCurrentTab('teacher_gradebook')}
-                    className={`flex flex-col items-center gap-0.5 ${
-                      currentTab === 'teacher_gradebook' ? 'text-blue-600 font-bold' : 'text-slate-400'
-                    }`}
-                  >
-                    <BarChart3 size={18} />
-                    <span className="text-[10px]">Bảng Điểm</span>
-                  </button>
-                  <button
-                    onClick={() => setCurrentTab('teacher_portal')}
-                    className={`flex flex-col items-center gap-0.5 ${
-                      currentTab === 'teacher_portal' ? 'text-blue-600 font-bold' : 'text-slate-400'
-                    }`}
-                  >
-                    <FileText size={18} />
-                    <span className="text-[10px]">Tạo Đề</span>
-                  </button>
-                  <button
-                    onClick={() => setCurrentTab('exam')}
-                    className={`flex flex-col items-center gap-0.5 ${
-                      currentTab === 'exam' ? 'text-blue-600 font-bold' : 'text-slate-400'
-                    }`}
-                  >
-                    <Award size={18} />
-                    <span className="text-[10px]">Phòng Thi</span>
-                  </button>
-                  <button
-                    onClick={() => setCurrentTab('geometry')}
-                    className={`flex flex-col items-center gap-0.5 ${
-                      currentTab === 'geometry' ? 'text-blue-600 font-bold' : 'text-slate-400'
-                    }`}
-                  >
-                    <Compass size={18} />
-                    <span className="text-[10px]">Vẽ Hình</span>
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={() => setCurrentTab('ask_ai')}
-                    className={`flex flex-col items-center gap-0.5 ${
-                      currentTab === 'ask_ai' || currentTab === 'scanner' || currentTab === 'tutor'
-                        ? 'text-blue-600 font-bold'
-                        : 'text-slate-400'
-                    }`}
-                  >
-                    <Sparkles size={18} />
-                    <span className="text-[10px]">Hỏi AI</span>
-                  </button>
-                  <button
-                    onClick={() => setCurrentTab('classroom')}
-                    className={`flex flex-col items-center gap-0.5 ${
-                      currentTab === 'classroom' ? 'text-blue-600 font-bold' : 'text-slate-400'
-                    }`}
-                  >
-                    <Users size={18} />
-                    <span className="text-[10px]">Nhóm lớp</span>
-                  </button>
-                  <button
-                    onClick={() => setCurrentTab('student_history')}
-                    className={`flex flex-col items-center gap-0.5 ${
-                      currentTab === 'student_history' ? 'text-blue-600 font-bold' : 'text-slate-400'
-                    }`}
-                  >
-                    <FileCheck size={18} />
-                    <span className="text-[10px]">Bài đã làm</span>
-                  </button>
-                  <button
-                    onClick={() => setCurrentTab('exam')}
-                    className={`flex flex-col items-center gap-0.5 ${
-                      currentTab === 'exam' ? 'text-blue-600 font-bold' : 'text-slate-400'
-                    }`}
-                  >
-                    <Award size={18} />
-                    <span className="text-[10px]">Thi BGD</span>
-                  </button>
-                  <button
-                    onClick={() => setCurrentTab('geometry')}
-                    className={`flex flex-col items-center gap-0.5 ${
-                      currentTab === 'geometry' ? 'text-blue-600 font-bold' : 'text-slate-400'
-                    }`}
-                  >
-                    <Compass size={18} />
-                    <span className="text-[10px]">Vẽ Hình</span>
-                  </button>
-                </>
-              )}
-            </div>
+            {/* Mobile Bottom Tab Bar (Ẩn khi đang trong phòng thi để chống bấm nhầm) */}
+            {currentTab !== 'exam' && (
+              <div className="h-16 bg-white/95 border-t border-slate-200 flex items-center justify-around px-2 relative z-20">
+                {userRole === 'teacher' ? (
+                  <>
+                    <button
+                      onClick={() => setCurrentTab('classroom')}
+                      className={`flex flex-col items-center gap-0.5 ${
+                        currentTab === 'classroom' ? 'text-blue-600 font-bold' : 'text-slate-400'
+                      }`}
+                    >
+                      <Users size={18} />
+                      <span className="text-[10px]">Nhóm Lớp</span>
+                    </button>
+                    <button
+                      onClick={() => setCurrentTab('teacher_gradebook')}
+                      className={`flex flex-col items-center gap-0.5 ${
+                        currentTab === 'teacher_gradebook' ? 'text-blue-600 font-bold' : 'text-slate-400'
+                      }`}
+                    >
+                      <BarChart3 size={18} />
+                      <span className="text-[10px]">Bảng Điểm</span>
+                    </button>
+                    <button
+                      onClick={() => setCurrentTab('teacher_portal')}
+                      className={`flex flex-col items-center gap-0.5 ${
+                        currentTab === 'teacher_portal' ? 'text-blue-600 font-bold' : 'text-slate-400'
+                      }`}
+                    >
+                      <FileText size={18} />
+                      <span className="text-[10px]">Tạo Đề</span>
+                    </button>
+                    <button
+                      onClick={() => setCurrentTab('exam')}
+                      className={`flex flex-col items-center gap-0.5 ${
+                        currentTab === 'exam' ? 'text-blue-600 font-bold' : 'text-slate-400'
+                      }`}
+                    >
+                      <Award size={18} />
+                      <span className="text-[10px]">Phòng Thi</span>
+                    </button>
+                    <button
+                      onClick={() => setCurrentTab('geometry')}
+                      className={`flex flex-col items-center gap-0.5 ${
+                        currentTab === 'geometry' ? 'text-blue-600 font-bold' : 'text-slate-400'
+                      }`}
+                    >
+                      <Compass size={18} />
+                      <span className="text-[10px]">Vẽ Hình</span>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => setCurrentTab('ask_ai')}
+                      className={`flex flex-col items-center gap-0.5 ${
+                        currentTab === 'ask_ai' || currentTab === 'scanner' || currentTab === 'tutor'
+                          ? 'text-blue-600 font-bold'
+                          : 'text-slate-400'
+                      }`}
+                    >
+                      <Sparkles size={18} />
+                      <span className="text-[10px]">Hỏi AI</span>
+                    </button>
+                    <button
+                      onClick={() => setCurrentTab('classroom')}
+                      className={`flex flex-col items-center gap-0.5 ${
+                        currentTab === 'classroom' ? 'text-blue-600 font-bold' : 'text-slate-400'
+                      }`}
+                    >
+                      <Users size={18} />
+                      <span className="text-[10px]">Nhóm lớp</span>
+                    </button>
+                    <button
+                      onClick={() => setCurrentTab('student_history')}
+                      className={`flex flex-col items-center gap-0.5 ${
+                        currentTab === 'student_history' ? 'text-blue-600 font-bold' : 'text-slate-400'
+                      }`}
+                    >
+                      <FileCheck size={18} />
+                      <span className="text-[10px]">Bài đã làm</span>
+                    </button>
+                    <button
+                      onClick={() => setCurrentTab('geometry')}
+                      className={`flex flex-col items-center gap-0.5 ${
+                        currentTab === 'geometry' ? 'text-blue-600 font-bold' : 'text-slate-400'
+                      }`}
+                    >
+                      <Compass size={18} />
+                      <span className="text-[10px]">Vẽ Hình</span>
+                    </button>
+                    <button
+                      onClick={() => setCurrentTab('profile')}
+                      className={`flex flex-col items-center gap-0.5 ${
+                        currentTab === 'profile' ? 'text-blue-600 font-bold' : 'text-slate-400'
+                      }`}
+                    >
+                      <User size={18} />
+                      <span className="text-[10px]">Hồ Sơ</span>
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         )}
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 py-6 px-4 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p>© 2026 Math&NBK Platform. Hệ thống Giáo dục Toán học THPT Chuẩn Quốc Gia.</p>
-          <div className="flex items-center gap-4 text-slate-400">
-            <span>Phiên bản 2.6 (GDPT 2018)</span>
-            <span>·</span>
-            <span>Học & Thi Trắc Nghiệm Thông Minh</span>
+      {currentTab !== 'exam' && (
+        <footer className="bg-white border-t border-slate-200 py-6 px-4 text-center text-xs text-slate-500">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p>© 2026 Math&NBK Platform. Hệ thống Giáo dục Toán học THPT Chuẩn Quốc Gia.</p>
+            <div className="flex items-center gap-4 text-slate-400">
+              <span>Phiên bản 2.6 (GDPT 2018)</span>
+              <span>·</span>
+              <span>Học & Thi Trắc Nghiệm Thông Minh</span>
+            </div>
           </div>
-        </div>
-      </footer>
+        </footer>
+      )}
     </div>
   );
 }

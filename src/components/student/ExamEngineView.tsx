@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Exam, Question, CheatLog, StudentExamSubmission } from '../../types/math';
 import { SAMPLE_EXAM_BGD } from '../../data/mockData';
 import { gradePart2TrueFalse, validatePart3ShortAnswerFormat, isAnswerEquivalent } from '../../lib/scoringEngine';
@@ -23,6 +23,9 @@ import {
   ZoomIn,
   X,
   Sparkles,
+  Maximize,
+  Minimize,
+  ArrowLeft,
 } from 'lucide-react';
 
 interface ExamEngineViewProps {
@@ -32,6 +35,7 @@ interface ExamEngineViewProps {
   onSelectExamId?: (id: string) => void;
   onSubmitExam?: (submission: StudentExamSubmission) => void;
   onViewHistory?: () => void;
+  onExitExam?: () => void;
   studentProfile?: { id: string; name: string; email: string };
   defaultClassId?: string;
   submissions?: StudentExamSubmission[];
@@ -44,6 +48,7 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
   onSelectExamId,
   onSubmitExam,
   onViewHistory,
+  onExitExam,
   studentProfile,
   defaultClassId = 'cls_12a1',
   submissions = [],
@@ -60,11 +65,62 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
   const [scoreReport, setScoreReport] = useState<any | null>(null);
   const [lastAutoSaved, setLastAutoSaved] = useState<string>('');
 
+  // Trạng thái chế độ toàn màn hình
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(() => {
+    return typeof document !== 'undefined' && !!(document.fullscreenElement || (document as any).webkitFullscreenElement);
+  });
+
+  const enterFullscreen = () => {
+    try {
+      const elem = document.documentElement;
+      if (elem.requestFullscreen) {
+        elem.requestFullscreen().catch(() => {});
+      } else if ((elem as any).webkitRequestFullscreen) {
+        (elem as any).webkitRequestFullscreen();
+      } else if ((elem as any).msRequestFullscreen) {
+        (elem as any).msRequestFullscreen();
+      }
+    } catch (e) {}
+  };
+
+  const exitFullscreen = () => {
+    try {
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      } else if ((document as any).webkitFullscreenElement) {
+        (document as any).webkitExitFullscreen();
+      }
+    } catch (e) {}
+  };
+
   // Bộ lọc danh mục đề thi (Giao theo lớp / Kho đề tổng hợp)
   const [examFilterType, setExamFilterType] = useState<'all' | 'classroom' | 'repository'>('all');
 
   // Modal xem phóng to ảnh đính kèm câu hỏi
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+  const [showExitModal, setShowExitModal] = useState<boolean>(false);
+  const [showSubmitModal, setShowSubmitModal] = useState<boolean>(false);
+
+  // Thống kê tiến độ câu hỏi đã làm
+  const totalQuestionCount = exam.questions.length;
+  const answeredQuestionCount = useMemo(() => {
+    let count = 0;
+    exam.questions.forEach((q) => {
+      if (q.part === 'part_1_mcq') {
+        if (answers[q.id]) count++;
+      } else if (q.part === 'part_2_true_false') {
+        const hasA = answers[`${q.id}_a`] !== undefined;
+        const hasB = answers[`${q.id}_b`] !== undefined;
+        const hasC = answers[`${q.id}_c`] !== undefined;
+        const hasD = answers[`${q.id}_d`] !== undefined;
+        if (hasA || hasB || hasC || hasD) count++;
+      } else if (q.part === 'part_3_short_answer') {
+        if (answers[q.id] && String(answers[q.id]).trim().length > 0) count++;
+      }
+    });
+    return count;
+  }, [exam.questions, answers]);
+  const unansweredQuestionCount = Math.max(0, totalQuestionCount - answeredQuestionCount);
 
   // Số lượt làm bài đã thực hiện của học sinh đối với đề thi này
   const studentId = studentProfile?.id || 'usr_student_01';
@@ -195,7 +251,37 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
     }
   };
 
-  // 5. Chấm điểm bài thi tự động (CHỈ 3 PHẦN: MCQ, Đúng/Sai, Trả lời ngắn - KHÔNG CÓ TỰ LUẬN)
+  // 5. Tự động yêu cầu vào chế độ toàn màn hình khi làm bài & dọn dẹp khi unmount
+  useEffect(() => {
+    if (!isSubmitted && !isDisqualified && isExamTimeActive && !isMaxAttemptsReached) {
+      enterFullscreen();
+    }
+
+    return () => {
+      exitFullscreen();
+    };
+  }, [exam.id, isSubmitted, isDisqualified, isExamTimeActive, isMaxAttemptsReached]);
+
+  // 6. Theo dõi sự kiện thay đổi toàn màn hình & phát hiện học sinh thoát toàn màn hình (chống gian lận)
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isFull = !!(document.fullscreenElement || (document as any).webkitFullscreenElement);
+      setIsFullscreen(isFull);
+      if (!isFull && !isSubmitted && !isDisqualified && isExamTimeActive && !isMaxAttemptsReached) {
+        registerInfraction('Thoát khỏi chế độ toàn màn hình khi đang làm bài thi');
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
+  }, [isSubmitted, isDisqualified, isExamTimeActive, isMaxAttemptsReached, infractionCount]);
+
+  // 7. Chấm điểm bài thi tự động (CHỈ 3 PHẦN: MCQ, Đúng/Sai, Trả lời ngắn - KHÔNG CÓ TỰ LUẬN)
   // Tổng điểm bài thi dựa hoàn toàn trên tổng điểm từng câu hỏi của bài
   const handleSubmitExam = (disqualifyReason?: string) => {
     let part1Score = 0;
@@ -293,6 +379,7 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
 
     setIsSubmitted(true);
     localStorage.removeItem(`math_draft_${exam.id}`);
+    exitFullscreen();
   };
 
   const formatTimer = (sec: number) => {
@@ -323,106 +410,119 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
   });
 
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 py-8 space-y-6">
+    <div className="w-full min-h-screen bg-slate-100 pb-16">
       {/* Top Countdown & Anti-Cheat Sticky Bar */}
-      <div className="sticky top-16 z-30 bg-white/95 backdrop-blur-md p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        {/* Exam Title & Year & Selector */}
-        <div className="flex-1 min-w-[240px]">
-          <div className="flex flex-wrap items-center gap-2 mb-1">
-            <span className="text-[11px] font-extrabold uppercase tracking-wider text-blue-600">
-              Đề Thi Toán THPT · {exam.durationMinutes} Phút · {exam.totalPoints} Điểm
-            </span>
-
-            {/* Phân loại: Giao theo lớp hay Kho tổng hợp */}
-            <span
-              className={`px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 ${
-                exam.distributionType === 'classroom'
-                  ? 'bg-blue-100 text-blue-800'
-                  : exam.distributionType === 'repository'
-                  ? 'bg-indigo-100 text-indigo-800'
-                  : 'bg-purple-100 text-purple-800'
-              }`}
-            >
-              {exam.distributionType === 'classroom' ? (
-                <>
-                  <Users size={11} />
-                  <span>Giao Theo Nhóm Lớp</span>
-                </>
-              ) : exam.distributionType === 'repository' ? (
-                <>
-                  <BookOpen size={11} />
-                  <span>Kho Đề Thi Tổng Hợp</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles size={11} />
-                  <span>Cả Lớp & Kho Tổng Hợp</span>
-                </>
-              )}
-            </span>
-
-            {/* Giới hạn số lượt làm bài badge */}
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">
-              Lượt thi: {currentAttemptCount}/{maxAttemptsAllowed > 0 ? maxAttemptsAllowed : 'Không giới hạn'}
-            </span>
+      <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs">
+        <div className="max-w-6xl mx-auto px-4 py-3.5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          {/* Exam Title & Details */}
+          <div className="flex items-center gap-3">
+            {onExitExam && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isSubmitted && isExamTimeActive && !isMaxAttemptsReached) {
+                    setShowExitModal(true);
+                  } else {
+                    exitFullscreen();
+                    onExitExam();
+                  }
+                }}
+                className="p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-slate-200 transition-colors"
+                title="Rời phòng thi"
+              >
+                <ArrowLeft size={18} />
+              </button>
+            )}
+            <div>
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-[11px] font-black uppercase tracking-wider text-blue-600">
+                  Phòng Thi Trực Tuyến
+                </span>
+                <span className="text-slate-300">·</span>
+                <span className="text-xs font-semibold text-slate-500">
+                  {exam.durationMinutes} phút · {exam.totalPoints} điểm · {exam.questions.length} câu hỏi
+                </span>
+              </div>
+              <h1 className="text-base sm:text-lg font-black text-slate-900 leading-tight">
+                {exam.title}
+              </h1>
+            </div>
           </div>
 
-          {/* Chọn đề thi khác trong kho */}
-          <div className="flex items-center gap-2">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 line-clamp-1">{exam.title}</h2>
-            {examsList.length > 1 && (
-              <select
-                value={exam.id}
-                onChange={(e) => {
-                  if (onSelectExamId) onSelectExamId(e.target.value);
-                  const chosen = examsList.find((ex) => ex.id === e.target.value);
-                  if (chosen) setExam(chosen);
-                }}
-                className="text-xs bg-slate-100 border border-slate-300 rounded-lg px-2 py-1 font-bold text-slate-700 max-w-[200px]"
+          {/* Status Indicators & Submission Action */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Countdown Clock */}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-blue-50 border border-blue-200 text-blue-700">
+              <Clock size={16} />
+              <span className="font-mono font-black text-base tabular-nums">{formatTimer(timeLeft)}</span>
+            </div>
+
+            {/* Anti-Cheat Infraction Indicator */}
+            <div
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl border text-xs font-bold ${
+                infractionCount === 0
+                  ? 'bg-slate-100 text-slate-600 border-slate-200'
+                  : infractionCount === 1
+                  ? 'bg-amber-50 text-amber-700 border-amber-300'
+                  : 'bg-red-50 text-red-700 border-red-300 animate-pulse'
+              }`}
+            >
+              <ShieldAlert size={15} />
+              <span>Vi phạm: {infractionCount}/3</span>
+            </div>
+
+            {/* Fullscreen Button */}
+            <button
+              type="button"
+              onClick={isFullscreen ? exitFullscreen : enterFullscreen}
+              title={isFullscreen ? 'Thu nhỏ cửa sổ' : 'Mở toàn màn hình'}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl border text-xs font-bold transition-all shadow-2xs ${
+                isFullscreen
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                  : 'bg-indigo-50 text-indigo-700 border-indigo-300 hover:bg-indigo-100'
+              }`}
+            >
+              {isFullscreen ? <Minimize size={15} /> : <Maximize size={15} />}
+              <span className="hidden sm:inline">{isFullscreen ? 'Toàn màn hình: Bật' : 'Toàn màn hình'}</span>
+            </button>
+
+            {/* Submit Button */}
+            {!isSubmitted && isExamTimeActive && !isMaxAttemptsReached && (
+              <button
+                type="button"
+                onClick={() => setShowSubmitModal(true)}
+                className="px-5 py-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-all"
               >
-                {filteredExamsList.map((ex) => (
-                  <option key={ex.id} value={ex.id}>
-                    {ex.title} ({ex.totalPoints}đ)
-                  </option>
-                ))}
-              </select>
+                Nộp Bài Thi
+              </button>
             )}
           </div>
         </div>
-
-        {/* Status Indicators & Submission Action */}
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Countdown Clock */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-blue-50 border border-blue-200 text-blue-700">
-            <Clock size={16} />
-            <span className="font-mono font-bold text-base tabular-nums">{formatTimer(timeLeft)}</span>
-          </div>
-
-          {/* Anti-Cheat Infraction Indicator */}
-          <div
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl border text-xs font-bold ${
-              infractionCount === 0
-                ? 'bg-slate-100 text-slate-600 border-slate-200'
-                : infractionCount === 1
-                ? 'bg-amber-50 text-amber-700 border-amber-300'
-                : 'bg-red-50 text-red-700 border-red-300 animate-pulse'
-            }`}
-          >
-            <ShieldAlert size={15} />
-            <span>Vi phạm: {infractionCount}/3</span>
-          </div>
-
-          {/* Submit Button */}
-          {!isSubmitted && isExamTimeActive && !isMaxAttemptsReached && (
-            <button
-              onClick={() => handleSubmitExam()}
-              className="px-5 py-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-all"
-            >
-              Nộp Bài Thi
-            </button>
-          )}
-        </div>
       </div>
+
+      <div className="max-w-5xl mx-auto px-4 pt-6 space-y-6">
+        {/* Banner nhắc nhở & chuyển nhanh sang Toàn Màn Hình */}
+        {!isFullscreen && !isSubmitted && isExamTimeActive && !isMaxAttemptsReached && (
+          <div className="p-3.5 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-xs animate-in fade-in">
+            <div className="flex items-center gap-2.5">
+              <Maximize size={18} className="text-indigo-600 shrink-0" />
+              <div>
+                <span className="font-bold block">Chế độ thi yêu cầu Toàn Màn Hình</span>
+                <span className="text-indigo-700 text-[11px]">
+                  Để đảm bảo tính nghiêm túc và chống gian lận, vui lòng duy trì toàn màn hình khi làm bài.
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={enterFullscreen}
+              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs whitespace-nowrap flex items-center gap-1.5 transition-colors"
+            >
+              <Maximize size={14} />
+              <span>Bật Toàn Màn Hình Ngay</span>
+            </button>
+          </div>
+        )}
 
       {/* CẢNH BÁO: ĐÃ ĐẠT GIỚI HẠN SỐ LƯỢT LÀM BÀI */}
       {isMaxAttemptsReached && !isSubmitted && (
@@ -551,6 +651,18 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
               >
                 <History size={15} />
                 <span>Xem Tổng Hợp Bài Đã Làm</span>
+              </button>
+            )}
+            {onExitExam && (
+              <button
+                onClick={() => {
+                  exitFullscreen();
+                  onExitExam();
+                }}
+                className="flex-1 py-3 rounded-2xl bg-slate-900 hover:bg-black text-white font-bold text-xs shadow-xs flex items-center justify-center gap-2 transition-colors"
+              >
+                <ArrowLeft size={15} />
+                <span>Rời Phòng Thi & Về Lớp</span>
               </button>
             )}
           </div>
@@ -901,6 +1013,26 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
         )}
       </div>
 
+      {/* Bottom Submission Action Bar */}
+      {!isSubmitted && isExamTimeActive && !isMaxAttemptsReached && (
+        <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div>
+            <h4 className="font-bold text-slate-900 text-sm">Bạn đã làm xong bài kiểm tra?</h4>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Đã trả lời <strong className="text-blue-600 font-bold">{answeredQuestionCount}/{totalQuestionCount}</strong> câu hỏi. Hãy kiểm tra lại trước khi nộp bài.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowSubmitModal(true)}
+            className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs flex items-center justify-center gap-2 transition-all"
+          >
+            <Send size={15} />
+            <span>Nộp Bài Thi Ngay</span>
+          </button>
+        </div>
+      )}
+
       {/* Modal Phóng To Hình Ảnh Đính Kèm */}
       {zoomedImage && (
         <div
@@ -940,6 +1072,119 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modal Xác Nhận Thoát Khỏi Phòng Thi */}
+      {showExitModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto">
+              <AlertTriangle size={24} />
+            </div>
+            <div className="text-center space-y-1">
+              <h4 className="text-base font-black text-slate-900">Rời Khỏi Phòng Thi?</h4>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Bạn đang trong thời gian làm bài. Bản nháp bài làm của bạn đã được tự động lưu. Bạn có chắc chắn muốn thoát về Nhóm Lớp không?
+              </p>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowExitModal(false)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs hover:bg-slate-50"
+              >
+                Tiếp Tục Làm Bài
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowExitModal(false);
+                  exitFullscreen();
+                  if (onExitExam) onExitExam();
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs"
+              >
+                Thoát Phòng Thi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Xác Nhận Nộp Bài Thi */}
+      {showSubmitModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 space-y-5 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="w-14 h-14 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center mx-auto">
+              <Send size={26} />
+            </div>
+
+            <div className="text-center space-y-1">
+              <h4 className="text-lg font-black text-slate-900">Xác Nhận Nộp Bài Thi?</h4>
+              <p className="text-xs text-slate-500">
+                Hệ thống sẽ ghi nhận và chấm điểm tự động toàn bộ bài thi của bạn.
+              </p>
+            </div>
+
+            {/* Thống kê câu hỏi đã làm & thời gian còn lại */}
+            <div className="grid grid-cols-2 gap-2 text-center text-xs">
+              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
+                <span className="text-slate-400 block text-[11px]">Đã trả lời</span>
+                <span className="text-base font-black text-slate-900 font-mono">
+                  {answeredQuestionCount} / {totalQuestionCount}
+                </span>
+              </div>
+              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
+                <span className="text-slate-400 block text-[11px]">Thời gian còn</span>
+                <span className="text-base font-black text-blue-600 font-mono">
+                  {formatTimer(timeLeft)}
+                </span>
+              </div>
+            </div>
+
+            {/* Cảnh báo nếu còn câu chưa trả lời */}
+            {unansweredQuestionCount > 0 ? (
+              <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-1">
+                <div className="flex items-center gap-1.5 font-bold text-amber-800">
+                  <AlertTriangle size={15} className="shrink-0" />
+                  <span>Bạn còn {unansweredQuestionCount} câu hỏi chưa làm!</span>
+                </div>
+                <p className="text-[11px] text-amber-700 leading-relaxed">
+                  Các câu hỏi bỏ trống sẽ nhận 0 điểm. Bạn có chắc chắn muốn nộp bài bây giờ không?
+                </p>
+              </div>
+            ) : (
+              <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs flex items-center gap-2">
+                <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+                <div>
+                  <span className="font-bold block">Đã hoàn thành toàn bộ câu hỏi!</span>
+                  <span className="text-emerald-700 text-[11px]">Bạn đã trả lời đầy đủ {totalQuestionCount}/{totalQuestionCount} câu.</span>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-2.5 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowSubmitModal(false)}
+                className="flex-1 py-3 rounded-2xl border border-slate-300 text-slate-700 font-bold text-xs hover:bg-slate-50 transition-colors"
+              >
+                Kiểm Tra Lại
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSubmitModal(false);
+                  handleSubmitExam();
+                }}
+                className="flex-1 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors"
+              >
+                Xác Nhận Nộp Bài
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-  );
+  </div>
+);
 };
