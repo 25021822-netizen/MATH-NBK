@@ -14,26 +14,6 @@ export interface UserProfile {
   maxDailyScans: number;
   grade: 10 | 11 | 12;
   avatar?: string;
-  phone?: string;
-  school?: string;
-  subject?: string;
-}
-
-export interface ClassroomLesson {
-  id: string;
-  classId: string;
-  title: string;
-  topic: string;
-  content: string;
-  summary: string;
-  teacherId: string;
-  teacherName: string;
-  createdAt: string;
-  attachment?: {
-    name: string;
-    dataUrl: string;
-    size: number;
-  };
 }
 
 export type MathTopic = 
@@ -62,7 +42,8 @@ export interface SkillNode {
 export type ExamPartType = 
   | 'part_1_mcq' 
   | 'part_2_true_false' 
-  | 'part_3_short_answer';
+  | 'part_3_short_answer' 
+  | 'part_4_essay';
 
 export interface QuestionPart1MCQ {
   id: string;
@@ -70,8 +51,6 @@ export interface QuestionPart1MCQ {
   questionNumber: number;
   prompt: string;
   latex?: string;
-  imageUrl?: string;
-  imageAlignment?: 'left' | 'center' | 'right';
   options: {
     key: 'A' | 'B' | 'C' | 'D';
     text: string;
@@ -96,8 +75,6 @@ export interface QuestionPart2TrueFalse {
   questionNumber: number;
   prompt: string;
   latex?: string;
-  imageUrl?: string;
-  imageAlignment?: 'left' | 'center' | 'right';
   items: QuestionPart2TrueFalseItem[]; // 4 ý độc lập a, b, c, d
   explanation: string;
   points: number; // Tối đa 1.0 điểm theo quy tắc lũy tiến 0.1 -> 0.25 -> 0.5 -> 1.0
@@ -109,9 +86,19 @@ export interface QuestionPart3ShortAnswer {
   questionNumber: number;
   prompt: string;
   latex?: string;
-  imageUrl?: string;
-  imageAlignment?: 'left' | 'center' | 'right';
   correctAnswer: string; // Tối đa 4 ký tự/chữ số, hỗ trợ -, ,, /
+  explanation: string;
+  points: number;
+}
+
+export interface QuestionPart4Essay {
+  id: string;
+  part: 'part_4_essay';
+  questionNumber: number;
+  prompt: string;
+  latex?: string;
+  correctAnswer: string; // Phân số hoặc số thập phân (được tự động chuẩn hóa khi chấm)
+  acceptedVariants?: string[];
   explanation: string;
   points: number;
 }
@@ -119,7 +106,8 @@ export interface QuestionPart3ShortAnswer {
 export type Question = 
   | QuestionPart1MCQ 
   | QuestionPart2TrueFalse 
-  | QuestionPart3ShortAnswer;
+  | QuestionPart3ShortAnswer 
+  | QuestionPart4Essay;
 
 export interface Exam {
   id: string;
@@ -127,9 +115,6 @@ export interface Exam {
   grade: 10 | 11 | 12;
   year: number;
   durationMinutes: number;
-  availableFrom?: string;
-  submissionDeadline?: string;
-  maxAttempts?: number;
   totalPoints: number;
   status: 'draft' | 'approved' | 'archived';
   createdBy: string;
@@ -149,6 +134,7 @@ export interface ExamAttempt {
     part1: number;
     part2: number;
     part3: number;
+    part4: number;
   };
   infractionCount: number;
   isDisqualified: boolean;
@@ -225,6 +211,7 @@ export interface StudentExamSubmission {
     part1: number;
     part2: number;
     part3: number;
+    part4: number;
   };
   answers: Record<string, any>;
   infractionCount: number;

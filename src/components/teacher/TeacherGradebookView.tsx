@@ -2,7 +2,6 @@ import React, { useState, useMemo } from 'react';
 import { Classroom, StudentExamSubmission, Exam, UserRole } from '../../types/math';
 import { SAMPLE_STUDENTS } from '../../data/mockData';
 import { MathView } from '../MathView';
-import { calculateExamTotalPoints } from '../../lib/scoringEngine';
 import {
   Award,
   Users,
@@ -40,11 +39,6 @@ export const TeacherGradebookView: React.FC<TeacherGradebookViewProps> = ({
   onSelectClassroom,
   onPreviewExam,
 }) => {
-  const getMaxPoints = (examId: string) => {
-    const exam = examsList.find((item) => item.id === examId);
-    return (exam ? calculateExamTotalPoints(exam.questions) : 0) || 10;
-  };
-
   // Bộ lọc
   const [selectedClassId, setSelectedClassId] = useState<string>('all');
   const [selectedExamId, setSelectedExamId] = useState<string>('all');
@@ -62,8 +56,6 @@ export const TeacherGradebookView: React.FC<TeacherGradebookViewProps> = ({
   // Lọc danh sách bài nộp theo bộ lọc
   const filteredSubmissions = useMemo(() => {
     return submissions.filter((sub) => {
-      const maxPoints = getMaxPoints(sub.examId);
-      const normalizedScore = (sub.score / maxPoints) * 10;
       // Lọc theo lớp
       if (selectedClassId !== 'all' && sub.classId !== selectedClassId) {
         return false;
@@ -73,10 +65,10 @@ export const TeacherGradebookView: React.FC<TeacherGradebookViewProps> = ({
         return false;
       }
       // Lọc theo khoảng điểm
-      if (scoreRangeFilter === 'excellent' && normalizedScore < 8.0) return false;
-      if (scoreRangeFilter === 'good' && (normalizedScore < 6.5 || normalizedScore >= 8.0)) return false;
-      if (scoreRangeFilter === 'average' && (normalizedScore < 5.0 || normalizedScore >= 6.5)) return false;
-      if (scoreRangeFilter === 'below' && normalizedScore >= 5.0) return false;
+      if (scoreRangeFilter === 'excellent' && sub.score < 8.0) return false;
+      if (scoreRangeFilter === 'good' && (sub.score < 6.5 || sub.score >= 8.0)) return false;
+      if (scoreRangeFilter === 'average' && (sub.score < 5.0 || sub.score >= 6.5)) return false;
+      if (scoreRangeFilter === 'below' && sub.score >= 5.0) return false;
 
       // Lọc theo từ khóa tìm kiếm học sinh
       if (searchStudentTerm.trim()) {
@@ -90,9 +82,7 @@ export const TeacherGradebookView: React.FC<TeacherGradebookViewProps> = ({
       return true;
     }).sort((a, b) => {
       if (sortField === 'score') {
-        const scoreA = (a.score / getMaxPoints(a.examId)) * 10;
-        const scoreB = (b.score / getMaxPoints(b.examId)) * 10;
-        return sortOrder === 'desc' ? scoreB - scoreA : scoreA - scoreB;
+        return sortOrder === 'desc' ? b.score - a.score : a.score - b.score;
       } else if (sortField === 'time') {
         return sortOrder === 'desc' ? b.timeSpentSeconds - a.timeSpentSeconds : a.timeSpentSeconds - b.timeSpentSeconds;
       } else {
@@ -101,7 +91,7 @@ export const TeacherGradebookView: React.FC<TeacherGradebookViewProps> = ({
           : new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime();
       }
     });
-  }, [submissions, examsList, selectedClassId, selectedExamId, scoreRangeFilter, searchStudentTerm, sortField, sortOrder]);
+  }, [submissions, selectedClassId, selectedExamId, scoreRangeFilter, searchStudentTerm, sortField, sortOrder]);
 
   // Thống kê phân tích
   const analytics = useMemo(() => {
@@ -119,7 +109,7 @@ export const TeacherGradebookView: React.FC<TeacherGradebookViewProps> = ({
       };
     }
 
-    const scores = filteredSubmissions.map((submission) => (submission.score / getMaxPoints(submission.examId)) * 10);
+    const scores = filteredSubmissions.map((s) => s.score);
     const sum = scores.reduce((acc, val) => acc + val, 0);
     const avg = sum / scores.length;
     const max = Math.max(...scores);
@@ -142,7 +132,7 @@ export const TeacherGradebookView: React.FC<TeacherGradebookViewProps> = ({
       belowCount,
       cheatingCount,
     };
-  }, [filteredSubmissions, examsList]);
+  }, [filteredSubmissions]);
 
   // Tìm thông tin đề thi của bài nộp đang xem
   const currentViewingExam = useMemo(() => {
@@ -152,13 +142,12 @@ export const TeacherGradebookView: React.FC<TeacherGradebookViewProps> = ({
 
   // Xuất bảng điểm CSV (In-browser download)
   const handleExportCSV = () => {
-    const headers = 'Hạng,Họ và tên,Email,Lớp,Đề thi,Điểm tổng,Điểm tối đa,Phần 1,Phần 2,Phần 3,Thời gian làm (phút),Vi phạm,Ngày nộp\n';
+    const headers = 'Hạng,Họ và tên,Email,Lớp,Đề thi,Điểm tổng,Phần 1,Phần 2,Phần 3,Phần 4,Thời gian làm (phút),Vi phạm,Ngày nộp\n';
     const rows = filteredSubmissions.map((sub, idx) => {
       const cls = classrooms.find((c) => c.id === sub.classId)?.name || sub.classId;
       const minutes = Math.round(sub.timeSpentSeconds / 60);
       const date = new Date(sub.submittedAt).toLocaleDateString('vi-VN');
-      const maxPoints = getMaxPoints(sub.examId);
-      return `${idx + 1},"${sub.studentName}","${sub.studentEmail}","${cls}","${sub.examTitle}",${sub.score},${maxPoints},${sub.partScores.part1},${sub.partScores.part2},${sub.partScores.part3},${minutes},${sub.infractionCount},"${date}"`;
+      return `${idx + 1},"${sub.studentName}","${sub.studentEmail}","${cls}","${sub.examTitle}",${sub.score},${sub.partScores.part1},${sub.partScores.part2},${sub.partScores.part3},${sub.partScores.part4},${minutes},${sub.infractionCount},"${date}"`;
     }).join('\n');
 
     const blob = new Blob(['\uFEFF' + headers + rows], { type: 'text/csv;charset=utf-8;' });
@@ -187,7 +176,7 @@ export const TeacherGradebookView: React.FC<TeacherGradebookViewProps> = ({
             Bảng Điểm & Thống Kê Năng Lực Học Sinh
           </h1>
           <p className="text-slate-500 text-xs sm:text-sm mt-1 max-w-2xl">
-            Tổng hợp kết quả theo từng nhóm lớp, phân tích phổ điểm, giám sát vi phạm anti-cheat và theo dõi sự tiến bộ của học sinh.
+            Tổng hợp kết quả làm bài thi chuẩn BGD 4 phần theo từng nhóm lớp, phân tích phổ điểm, giám sát vi phạm anti-cheat và theo dõi sự tiến bộ của học sinh.
           </p>
         </div>
 
@@ -484,6 +473,7 @@ export const TeacherGradebookView: React.FC<TeacherGradebookViewProps> = ({
                   <th className="py-3.5 px-4 text-center hidden md:table-cell">P.I (MCQ)</th>
                   <th className="py-3.5 px-4 text-center hidden md:table-cell">P.II (Đ/S)</th>
                   <th className="py-3.5 px-4 text-center hidden md:table-cell">P.III (Ngắn)</th>
+                  <th className="py-3.5 px-4 text-center hidden md:table-cell">P.IV (Tự luận)</th>
                   <th className="py-3.5 px-4 text-center">Giám Sát</th>
                   <th className="py-3.5 px-4 text-right">Chi Tiết</th>
                 </tr>
@@ -491,8 +481,6 @@ export const TeacherGradebookView: React.FC<TeacherGradebookViewProps> = ({
               <tbody className="divide-y divide-slate-100">
                 {filteredSubmissions.map((sub, idx) => {
                   const cls = classrooms.find((c) => c.id === sub.classId);
-                  const maxPoints = getMaxPoints(sub.examId);
-                  const normalizedScore = (sub.score / maxPoints) * 10;
                   const isTop3 = idx < 3 && sortField === 'score' && sortOrder === 'desc';
                   return (
                     <tr key={sub.id} className="hover:bg-slate-50/80 transition-colors">
@@ -546,16 +534,16 @@ export const TeacherGradebookView: React.FC<TeacherGradebookViewProps> = ({
                       <td className="py-3.5 px-4 text-center">
                         <span
                           className={`inline-block px-3 py-1 rounded-xl font-black font-mono text-sm ${
-                            normalizedScore >= 8.0
+                            sub.score >= 8.0
                               ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                              : normalizedScore >= 6.5
+                              : sub.score >= 6.5
                               ? 'bg-blue-100 text-blue-800 border border-blue-300'
-                              : normalizedScore >= 5.0
+                              : sub.score >= 5.0
                               ? 'bg-amber-100 text-amber-800 border border-amber-300'
                               : 'bg-rose-100 text-rose-800 border border-rose-300'
                           }`}
                         >
-                          {sub.score.toFixed(2)} / {maxPoints}
+                          {sub.score.toFixed(2)}
                         </span>
                       </td>
 
@@ -568,6 +556,9 @@ export const TeacherGradebookView: React.FC<TeacherGradebookViewProps> = ({
                       </td>
                       <td className="py-3.5 px-4 text-center font-mono font-bold text-amber-700 hidden md:table-cell">
                         {sub.partScores.part3.toFixed(2)}đ
+                      </td>
+                      <td className="py-3.5 px-4 text-center font-mono font-bold text-emerald-700 hidden md:table-cell">
+                        {sub.partScores.part4.toFixed(2)}đ
                       </td>
 
                       {/* Anti-cheat status */}
@@ -639,7 +630,7 @@ export const TeacherGradebookView: React.FC<TeacherGradebookViewProps> = ({
                 <div className="text-right">
                   <span className="text-xs text-slate-400 font-semibold block">Tổng Điểm:</span>
                   <span className="text-2xl font-black font-mono text-blue-600">
-                    {viewingSubmission.score.toFixed(2)}/{calculateExamTotalPoints(currentViewingExam.questions)}
+                    {viewingSubmission.score.toFixed(2)}/10
                   </span>
                 </div>
                 <button
@@ -652,19 +643,23 @@ export const TeacherGradebookView: React.FC<TeacherGradebookViewProps> = ({
             </div>
 
             {/* Score Breakdown Pills */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
-              {currentViewingExam.questions.some((question) => question.part === 'part_1_mcq') && <div className="p-3 rounded-2xl bg-blue-50 border border-blue-200">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+              <div className="p-3 rounded-2xl bg-blue-50 border border-blue-200">
                 <span className="text-[10px] font-bold text-blue-600 block">Phần I (MCQ)</span>
                 <span className="text-lg font-black font-mono text-blue-900">{viewingSubmission.partScores.part1}đ</span>
-              </div>}
-              {currentViewingExam.questions.some((question) => question.part === 'part_2_true_false') && <div className="p-3 rounded-2xl bg-purple-50 border border-purple-200">
+              </div>
+              <div className="p-3 rounded-2xl bg-purple-50 border border-purple-200">
                 <span className="text-[10px] font-bold text-purple-600 block">Phần II (Đúng/Sai)</span>
                 <span className="text-lg font-black font-mono text-purple-900">{viewingSubmission.partScores.part2}đ</span>
-              </div>}
-              {currentViewingExam.questions.some((question) => question.part === 'part_3_short_answer') && <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200">
+              </div>
+              <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200">
                 <span className="text-[10px] font-bold text-amber-600 block">Phần III (Ngắn)</span>
                 <span className="text-lg font-black font-mono text-amber-900">{viewingSubmission.partScores.part3}đ</span>
-              </div>}
+              </div>
+              <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200">
+                <span className="text-[10px] font-bold text-emerald-600 block">Phần IV (Tự luận)</span>
+                <span className="text-lg font-black font-mono text-emerald-900">{viewingSubmission.partScores.part4}đ</span>
+              </div>
             </div>
 
             {/* Anti-cheat and Time Spent Notes */}
@@ -705,7 +700,7 @@ export const TeacherGradebookView: React.FC<TeacherGradebookViewProps> = ({
                   const dAns = viewingSubmission.answers[`${q.id}_d`];
                   studentDisplayAns = `a:${aAns ? 'Đ' : 'S'}, b:${bAns ? 'Đ' : 'S'}, c:${cAns ? 'Đ' : 'S'}, d:${dAns ? 'Đ' : 'S'}`;
                   correctDisplayAns = q.items.map((it) => `${it.subKey}:${it.isCorrect ? 'Đ' : 'S'}`).join(', ');
-                } else if (q.part === 'part_3_short_answer') {
+                } else if (q.part === 'part_3_short_answer' || q.part === 'part_4_essay') {
                   studentDisplayAns = viewingSubmission.answers[q.id] || 'Chưa trả lời';
                   correctDisplayAns = q.correctAnswer;
                   isQuestionCorrect = studentDisplayAns.toString().trim() === correctDisplayAns.toString().trim();
@@ -726,14 +721,15 @@ export const TeacherGradebookView: React.FC<TeacherGradebookViewProps> = ({
                             ? 'Trắc nghiệm 4 lựa chọn'
                             : q.part === 'part_2_true_false'
                             ? 'Đúng/Sai 4 ý'
-                            : 'Trả lời ngắn'}
+                            : q.part === 'part_3_short_answer'
+                            ? 'Trả lời ngắn'
+                            : 'Tự luận / Số học'}
                         </span>
                       </div>
                       <span className="font-semibold text-slate-500">Thang điểm: {q.points}đ</span>
                     </div>
 
                     <p className="font-semibold text-slate-900">{q.prompt}</p>
-                    {q.imageUrl && <img src={q.imageUrl} alt={`Hình minh họa câu ${q.questionNumber}`} className={`block max-h-80 rounded-xl border border-slate-200 object-contain ${q.imageAlignment === 'left' ? 'mr-auto' : q.imageAlignment === 'right' ? 'ml-auto' : 'mx-auto'}`} />}
 
                     {q.latex && (
                       <div className="p-2.5 bg-slate-50 rounded-xl">

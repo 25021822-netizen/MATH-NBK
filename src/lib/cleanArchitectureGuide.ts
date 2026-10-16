@@ -51,7 +51,7 @@ math-nbk-mobile/
             ├── HomeScreen.tsx           # Bản đồ Duolingo Skill Tree, Streak, XP
             ├── ScannerScreen.tsx        # Camera OCR toán học & hiển thị lời giải LaTeX
             ├── SocraticChatScreen.tsx   # Gia sư AI đàm thoại gợi mở & vẽ đồ thị
-            ├── ExamScreen.tsx           # Phòng thi và giám sát gian lận
+            ├── ExamScreen.tsx           # Phòng thi 4 phần chuẩn BGD & giám sát gian lận
             └── TeacherUploadScreen.tsx  # Tải đề PDF, bóc tách AI & xem trước dữ liệu
 `;
 

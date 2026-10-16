@@ -1,14 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { SocraticMessage } from '../../types/math';
 import { MathView } from '../MathView';
 import { FunctionGrapher } from '../FunctionGrapher';
 import { Bot, User, Send, Sparkles, Lightbulb, LineChart, HelpCircle, ArrowRight, RefreshCw } from 'lucide-react';
 
-interface SocraticTutorViewProps {
-  initialQuestion?: string;
-}
-
-export const SocraticTutorView: React.FC<SocraticTutorViewProps> = ({ initialQuestion = '' }) => {
+export const SocraticTutorView: React.FC = () => {
   const [messages, setMessages] = useState<SocraticMessage[]>([
     {
       id: 'm1',
@@ -40,10 +36,6 @@ export const SocraticTutorView: React.FC<SocraticTutorViewProps> = ({ initialQue
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [showGraphModal, setShowGraphModal] = useState(false);
-
-  useEffect(() => {
-    if (initialQuestion) setInputText(initialQuestion);
-  }, [initialQuestion]);
 
   const handleSendMessage = async (textToSend?: string) => {
     const query = textToSend || inputText;

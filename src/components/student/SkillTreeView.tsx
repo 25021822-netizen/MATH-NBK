@@ -76,7 +76,7 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
               onClick={onOpenScanner}
               className="flex-1 sm:flex-initial px-5 py-3 rounded-2xl bg-blue-600/80 hover:bg-blue-600 text-white font-bold text-sm transition-all flex items-center justify-center gap-2 border border-white/20"
             >
-              <span>Trợ Lý Toán AI</span>
+              <span>Quét Bài Toán</span>
               <ChevronRight size={18} />
             </button>
           </div>

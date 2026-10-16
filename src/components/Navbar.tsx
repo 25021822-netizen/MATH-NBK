@@ -1,6 +1,6 @@
 import React from 'react';
 import { UserRole, AccountTier } from '../types/math';
-import { BookOpen, Flame, Zap, Smartphone, Monitor, Tablet, Sparkles, UserCheck, Users, UserRound } from 'lucide-react';
+import { BookOpen, Flame, Zap, Smartphone, Monitor, Tablet, Sparkles, UserCheck, Users } from 'lucide-react';
 
 interface NavbarProps {
   currentTab: string;
@@ -43,7 +43,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             href="#"
             onClick={(e) => {
               e.preventDefault();
-              onSelectTab(userRole === 'student' ? 'classroom' : 'home');
+              onSelectTab('home');
             }}
             className="flex items-center gap-2.5 group"
           >
@@ -66,6 +66,16 @@ export const Navbar: React.FC<NavbarProps> = ({
           {userRole === 'student' && (
             <>
               <button
+                onClick={() => onSelectTab('home')}
+                className={`whitespace-nowrap transition-colors py-1 ${
+                  currentTab === 'home'
+                    ? 'text-blue-600 font-bold border-b-2 border-blue-600'
+                    : 'hover:text-slate-900'
+                }`}
+              >
+                Lộ Trình Học
+              </button>
+              <button
                 onClick={() => onSelectTab('classroom')}
                 className={`whitespace-nowrap transition-colors py-1 ${
                   currentTab === 'classroom'
@@ -74,22 +84,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }`}
               >
                 Nhóm Lớp
-              </button>
-              <button
-                onClick={() => onSelectTab('class_lessons')}
-                className={`whitespace-nowrap transition-colors py-1 ${
-                  currentTab === 'class_lessons' ? 'text-blue-600 font-bold border-b-2 border-blue-600' : 'hover:text-slate-900'
-                }`}
-              >
-                Bài Học
-              </button>
-              <button
-                onClick={() => onSelectTab('graph_studio')}
-                className={`whitespace-nowrap transition-colors py-1 ${
-                  currentTab === 'graph_studio' ? 'text-blue-600 font-bold border-b-2 border-blue-600' : 'hover:text-slate-900'
-                }`}
-              >
-                Đồ Thị 2D/3D
               </button>
               <button
                 onClick={() => onSelectTab('student_history')}
@@ -102,14 +96,24 @@ export const Navbar: React.FC<NavbarProps> = ({
                 Bài Đã Làm
               </button>
               <button
-                onClick={() => onSelectTab('assistant')}
+                onClick={() => onSelectTab('scanner')}
                 className={`whitespace-nowrap transition-colors py-1 ${
-                  currentTab === 'assistant' || currentTab === 'scanner' || currentTab === 'tutor'
+                  currentTab === 'scanner'
                     ? 'text-blue-600 font-bold border-b-2 border-blue-600'
                     : 'hover:text-slate-900'
                 }`}
               >
-                Trợ Lý Toán AI
+                Quét Bài Tập AI
+              </button>
+              <button
+                onClick={() => onSelectTab('tutor')}
+                className={`whitespace-nowrap transition-colors py-1 ${
+                  currentTab === 'tutor'
+                    ? 'text-blue-600 font-bold border-b-2 border-blue-600'
+                    : 'hover:text-slate-900'
+                }`}
+              >
+                Gia Sư Socratic
               </button>
               <button
                 onClick={() => onSelectTab('exam')}
@@ -135,22 +139,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }`}
               >
                 Quản Lý Nhóm Lớp
-              </button>
-              <button
-                onClick={() => onSelectTab('class_lessons')}
-                className={`whitespace-nowrap transition-colors py-1 ${
-                  currentTab === 'class_lessons' ? 'text-blue-600 font-bold border-b-2 border-blue-600' : 'hover:text-slate-900'
-                }`}
-              >
-                Bài Học Lớp
-              </button>
-              <button
-                onClick={() => onSelectTab('graph_studio')}
-                className={`whitespace-nowrap transition-colors py-1 ${
-                  currentTab === 'graph_studio' ? 'text-blue-600 font-bold border-b-2 border-blue-600' : 'hover:text-slate-900'
-                }`}
-              >
-                Đồ Thị 2D/3D
               </button>
               <button
                 onClick={() => onSelectTab('teacher_gradebook')}
@@ -198,35 +186,20 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           )}
 
-          {userRole === 'admin' && (
-            <button
-              onClick={() => onSelectTab('architecture_docs')}
-              className={`whitespace-nowrap transition-colors py-1 ${
-                currentTab === 'architecture_docs'
-                  ? 'text-indigo-600 font-bold border-b-2 border-indigo-600'
-                  : 'hover:text-slate-900 text-slate-500'
-              }`}
-            >
-              Kiến Trúc & Mã Nguồn React Native
-            </button>
-          )}
+          <button
+            onClick={() => onSelectTab('architecture_docs')}
+            className={`whitespace-nowrap transition-colors py-1 ${
+              currentTab === 'architecture_docs'
+                ? 'text-indigo-600 font-bold border-b-2 border-indigo-600'
+                : 'hover:text-slate-900 text-slate-500'
+            }`}
+          >
+            Kiến Trúc & Mã Nguồn React Native
+          </button>
         </nav>
 
         {/* Zone 3: 1 Primary Action & Context Controls */}
         <div className="flex items-center gap-3 shrink-0">
-          {userRole !== 'admin' && (
-            <button
-              type="button"
-              onClick={() => onSelectTab('profile')}
-              title="Hồ sơ cá nhân"
-              aria-label="Hồ sơ cá nhân"
-              className={`flex h-9 w-9 items-center justify-center rounded-xl border transition-colors ${
-                currentTab === 'profile' ? 'border-blue-300 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-500 hover:bg-slate-100'
-              }`}
-            >
-              <UserRound size={17} />
-            </button>
-          )}
           {/* Streak & XP for Students */}
           {userRole === 'student' && (
             <div className="hidden lg:flex items-center gap-3 text-xs font-bold tabular-nums">
@@ -299,7 +272,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 key={r}
                 onClick={() => {
                   onSelectRole(r);
-                  if (r === 'student') onSelectTab('classroom');
+                  if (r === 'student') onSelectTab('home');
                   if (r === 'teacher') onSelectTab('teacher_portal');
                   if (r === 'admin') onSelectTab('admin_dashboard');
                 }}

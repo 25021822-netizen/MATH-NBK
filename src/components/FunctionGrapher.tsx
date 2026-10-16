@@ -65,9 +65,7 @@ export const FunctionGrapher: React.FC<FunctionGrapherProps> = ({
   const [tangentX, setTangentX] = useState<number>(0.5);
   const [showTangent, setShowTangent] = useState<boolean>(true);
   const [scale, setScale] = useState<number>(45); // Pixels per unit
-  const [pan, setPan] = useState({ x: 0, y: 0 });
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const dragStartRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
 
   const activeFunc = useMemo(() => {
     return PRESET_FUNCTIONS.find((f) => f.id === selectedFuncId) || PRESET_FUNCTIONS[0];
@@ -82,8 +80,8 @@ export const FunctionGrapher: React.FC<FunctionGrapherProps> = ({
 
     const width = canvas.width;
     const height = canvas.height;
-    const originX = width / 2 + pan.x;
-    const originY = height / 2 + pan.y;
+    const originX = width / 2;
+    const originY = height / 2;
 
     // Xóa khung hình
     ctx.clearRect(0, 0, width, height);
@@ -203,7 +201,7 @@ export const FunctionGrapher: React.FC<FunctionGrapherProps> = ({
         ctx.stroke();
       }
     }
-  }, [activeFunc, scale, tangentX, showTangent, pan]);
+  }, [activeFunc, scale, tangentX, showTangent]);
 
   const tangentY = activeFunc.evaluate(tangentX);
   const tangentSlope = activeFunc.derivative(tangentX);
@@ -251,7 +249,6 @@ export const FunctionGrapher: React.FC<FunctionGrapherProps> = ({
               onClick={() => {
                 setScale(45);
                 setTangentX(0.5);
-                setPan({ x: 0, y: 0 });
               }}
               title="Đặt lại"
               className="p-1 hover:bg-slate-100 rounded text-slate-600"
@@ -282,39 +279,8 @@ export const FunctionGrapher: React.FC<FunctionGrapherProps> = ({
           ref={canvasRef}
           width={560}
           height={320}
-          onPointerDown={(event: React.PointerEvent<HTMLCanvasElement>) => {
-            const rect = event.currentTarget.getBoundingClientRect();
-            dragStartRef.current = {
-              x: event.clientX,
-              y: event.clientY,
-              panX: pan.x,
-              panY: pan.y,
-            };
-            event.currentTarget.setPointerCapture(event.pointerId);
-            event.currentTarget.dataset.scaleX = String(event.currentTarget.width / rect.width);
-            event.currentTarget.dataset.scaleY = String(event.currentTarget.height / rect.height);
-          }}
-          onPointerMove={(event: React.PointerEvent<HTMLCanvasElement>) => {
-            const start = dragStartRef.current;
-            if (!start) return;
-            const scaleX = Number(event.currentTarget.dataset.scaleX) || 1;
-            const scaleY = Number(event.currentTarget.dataset.scaleY) || 1;
-            setPan({
-              x: start.panX + (event.clientX - start.x) * scaleX,
-              y: start.panY + (event.clientY - start.y) * scaleY,
-            });
-          }}
-          onPointerUp={() => {
-            dragStartRef.current = null;
-          }}
-          onPointerCancel={() => {
-            dragStartRef.current = null;
-          }}
-          className="max-w-full touch-none cursor-grab rounded-xl border border-slate-200 bg-white active:cursor-grabbing"
+          className="rounded-xl border border-slate-200 bg-white max-w-full"
         />
-        <span className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-slate-900/75 px-3 py-1 text-[10px] font-semibold text-white">
-          Kéo để di chuyển đồ thị
-        </span>
       </div>
 
       {/* Interactive Tangent Slider */}

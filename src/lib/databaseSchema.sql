@@ -17,7 +17,8 @@ CREATE TYPE math_topic AS ENUM (
 CREATE TYPE exam_part_type AS ENUM (
   'part_1_mcq', 
   'part_2_true_false', 
-  'part_3_short_answer'
+  'part_3_short_answer', 
+  'part_4_essay'
 );
 CREATE TYPE exam_status AS ENUM ('draft', 'approved', 'archived');
 CREATE TYPE cheat_event_type AS ENUM (
@@ -125,7 +126,7 @@ CREATE TABLE exam_results (
   end_time TIMESTAMPTZ,
   answers JSONB NOT NULL DEFAULT '{}'::JSONB,
   total_score NUMERIC(4, 2) DEFAULT 0.00,
-  part_scores JSONB DEFAULT '{"part1": 0, "part2": 0, "part3": 0}'::JSONB,
+  part_scores JSONB DEFAULT '{"part1": 0, "part2": 0, "part3": 0, "part4": 0}'::JSONB,
   infraction_count INTEGER NOT NULL DEFAULT 0,
   is_disqualified BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
