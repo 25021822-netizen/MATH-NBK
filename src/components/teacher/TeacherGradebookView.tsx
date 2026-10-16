@@ -473,7 +473,6 @@ export const TeacherGradebookView: React.FC<TeacherGradebookViewProps> = ({
                   <th className="py-3.5 px-4 text-center hidden md:table-cell">P.I (MCQ)</th>
                   <th className="py-3.5 px-4 text-center hidden md:table-cell">P.II (Đ/S)</th>
                   <th className="py-3.5 px-4 text-center hidden md:table-cell">P.III (Ngắn)</th>
-                  <th className="py-3.5 px-4 text-center hidden md:table-cell">P.IV (Tự luận)</th>
                   <th className="py-3.5 px-4 text-center">Giám Sát</th>
                   <th className="py-3.5 px-4 text-right">Chi Tiết</th>
                 </tr>
@@ -557,9 +556,6 @@ export const TeacherGradebookView: React.FC<TeacherGradebookViewProps> = ({
                       <td className="py-3.5 px-4 text-center font-mono font-bold text-amber-700 hidden md:table-cell">
                         {sub.partScores.part3.toFixed(2)}đ
                       </td>
-                      <td className="py-3.5 px-4 text-center font-mono font-bold text-emerald-700 hidden md:table-cell">
-                        {sub.partScores.part4.toFixed(2)}đ
-                      </td>
 
                       {/* Anti-cheat status */}
                       <td className="py-3.5 px-4 text-center">
@@ -642,8 +638,8 @@ export const TeacherGradebookView: React.FC<TeacherGradebookViewProps> = ({
               </div>
             </div>
 
-            {/* Score Breakdown Pills */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+            {/* Score Breakdown Pills (3 phần chuẩn hóa) */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
               <div className="p-3 rounded-2xl bg-blue-50 border border-blue-200">
                 <span className="text-[10px] font-bold text-blue-600 block">Phần I (MCQ)</span>
                 <span className="text-lg font-black font-mono text-blue-900">{viewingSubmission.partScores.part1}đ</span>
@@ -655,10 +651,6 @@ export const TeacherGradebookView: React.FC<TeacherGradebookViewProps> = ({
               <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200">
                 <span className="text-[10px] font-bold text-amber-600 block">Phần III (Ngắn)</span>
                 <span className="text-lg font-black font-mono text-amber-900">{viewingSubmission.partScores.part3}đ</span>
-              </div>
-              <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200">
-                <span className="text-[10px] font-bold text-emerald-600 block">Phần IV (Tự luận)</span>
-                <span className="text-lg font-black font-mono text-emerald-900">{viewingSubmission.partScores.part4}đ</span>
               </div>
             </div>
 
@@ -700,7 +692,7 @@ export const TeacherGradebookView: React.FC<TeacherGradebookViewProps> = ({
                   const dAns = viewingSubmission.answers[`${q.id}_d`];
                   studentDisplayAns = `a:${aAns ? 'Đ' : 'S'}, b:${bAns ? 'Đ' : 'S'}, c:${cAns ? 'Đ' : 'S'}, d:${dAns ? 'Đ' : 'S'}`;
                   correctDisplayAns = q.items.map((it) => `${it.subKey}:${it.isCorrect ? 'Đ' : 'S'}`).join(', ');
-                } else if (q.part === 'part_3_short_answer' || q.part === 'part_4_essay') {
+                } else if (q.part === 'part_3_short_answer') {
                   studentDisplayAns = viewingSubmission.answers[q.id] || 'Chưa trả lời';
                   correctDisplayAns = q.correctAnswer;
                   isQuestionCorrect = studentDisplayAns.toString().trim() === correctDisplayAns.toString().trim();
@@ -721,15 +713,20 @@ export const TeacherGradebookView: React.FC<TeacherGradebookViewProps> = ({
                             ? 'Trắc nghiệm 4 lựa chọn'
                             : q.part === 'part_2_true_false'
                             ? 'Đúng/Sai 4 ý'
-                            : q.part === 'part_3_short_answer'
-                            ? 'Trả lời ngắn'
-                            : 'Tự luận / Số học'}
+                            : 'Trả lời ngắn'}
                         </span>
                       </div>
                       <span className="font-semibold text-slate-500">Thang điểm: {q.points}đ</span>
                     </div>
 
                     <p className="font-semibold text-slate-900">{q.prompt}</p>
+
+                    {/* Ảnh đính kèm nếu có */}
+                    {q.imageAttachment && (
+                      <div className="p-2 bg-slate-50 rounded-xl border border-slate-200 inline-block">
+                        <img src={q.imageAttachment} alt="Ảnh đề bài" className="max-h-40 rounded-lg object-contain bg-white" />
+                      </div>
+                    )}
 
                     {q.latex && (
                       <div className="p-2.5 bg-slate-50 rounded-xl">

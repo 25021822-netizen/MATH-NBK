@@ -2,16 +2,17 @@ import React, { useMemo } from 'react';
 import katex from 'katex';
 
 interface MathViewProps {
-  math: string;
+  math?: string;
+  latex?: string;
   block?: boolean;
   className?: string;
 }
 
-export const MathView: React.FC<MathViewProps> = ({ math, block = false, className = '' }) => {
+export const MathView: React.FC<MathViewProps> = ({ math, latex, block = false, className = '' }) => {
   const html = useMemo(() => {
     try {
       // Làm sạch công thức nếu có dấu $ bọc ngoài
-      let cleanMath = math.trim();
+      let cleanMath = (math || latex || '').trim();
       if (cleanMath.startsWith('$$') && cleanMath.endsWith('$$')) {
         cleanMath = cleanMath.slice(2, -2).trim();
       } else if (cleanMath.startsWith('$') && cleanMath.endsWith('$')) {

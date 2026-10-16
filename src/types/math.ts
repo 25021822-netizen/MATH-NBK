@@ -14,6 +14,10 @@ export interface UserProfile {
   maxDailyScans: number;
   grade: 10 | 11 | 12;
   avatar?: string;
+  schoolName?: string;
+  phone?: string;
+  bio?: string;
+  subject?: string;
 }
 
 export type MathTopic = 
@@ -42,8 +46,7 @@ export interface SkillNode {
 export type ExamPartType = 
   | 'part_1_mcq' 
   | 'part_2_true_false' 
-  | 'part_3_short_answer' 
-  | 'part_4_essay';
+  | 'part_3_short_answer';
 
 export interface QuestionPart1MCQ {
   id: string;
@@ -59,6 +62,9 @@ export interface QuestionPart1MCQ {
   correctAnswer: 'A' | 'B' | 'C' | 'D';
   explanation: string;
   points: number;
+  imageAttachment?: string; // Dán/cắt file ảnh minh họa hoặc đề bài
+  pdfAttachmentName?: string; // Tên file tài liệu / hình vẽ đính kèm
+  pdfAttachmentUrl?: string;
 }
 
 export interface QuestionPart2TrueFalseItem {
@@ -78,6 +84,9 @@ export interface QuestionPart2TrueFalse {
   items: QuestionPart2TrueFalseItem[]; // 4 ý độc lập a, b, c, d
   explanation: string;
   points: number; // Tối đa 1.0 điểm theo quy tắc lũy tiến 0.1 -> 0.25 -> 0.5 -> 1.0
+  imageAttachment?: string;
+  pdfAttachmentName?: string;
+  pdfAttachmentUrl?: string;
 }
 
 export interface QuestionPart3ShortAnswer {
@@ -89,25 +98,16 @@ export interface QuestionPart3ShortAnswer {
   correctAnswer: string; // Tối đa 4 ký tự/chữ số, hỗ trợ -, ,, /
   explanation: string;
   points: number;
+  imageAttachment?: string;
+  pdfAttachmentName?: string;
+  pdfAttachmentUrl?: string;
 }
 
-export interface QuestionPart4Essay {
-  id: string;
-  part: 'part_4_essay';
-  questionNumber: number;
-  prompt: string;
-  latex?: string;
-  correctAnswer: string; // Phân số hoặc số thập phân (được tự động chuẩn hóa khi chấm)
-  acceptedVariants?: string[];
-  explanation: string;
-  points: number;
-}
-
+// Chỉ gồm 3 phần thi trắc nghiệm khách quan chuẩn BGD (đã loại bỏ hoàn toàn tự luận)
 export type Question = 
   | QuestionPart1MCQ 
   | QuestionPart2TrueFalse 
-  | QuestionPart3ShortAnswer 
-  | QuestionPart4Essay;
+  | QuestionPart3ShortAnswer;
 
 export interface Exam {
   id: string;
@@ -120,6 +120,12 @@ export interface Exam {
   createdBy: string;
   createdAt: string;
   questions: Question[];
+  // Tính năng mới cho giáo viên
+  maxAttempts?: number; // Giới hạn số lượt làm bài (1, 2, 3... hoặc 0/undefined là không giới hạn)
+  openTime?: string; // Thời gian mở đề thi (YYYY-MM-DDTHH:mm)
+  closeTime?: string; // Thời gian đóng đề thi (YYYY-MM-DDTHH:mm)
+  distributionType?: 'classroom' | 'repository' | 'both'; // Giao cho nhóm lớp hoặc đưa vào kho tổng hợp
+  targetClassIds?: string[]; // Danh sách nhóm lớp được giao đề
 }
 
 export interface ExamAttempt {
@@ -197,6 +203,25 @@ export interface Classroom {
   description?: string;
 }
 
+export interface ClassroomLesson {
+  id: string;
+  classId: string;
+  title: string;
+  chapter: string; // Chuyên đề / Chương bài học
+  description: string;
+  content: string; // Tóm tắt kiến thức, định lý, công thức LaTeX
+  teacherName: string;
+  createdAt: string;
+  attachments?: {
+    name: string;
+    type: 'pdf' | 'image' | 'link';
+    url: string;
+    size?: string;
+  }[];
+  exercisesCount?: number;
+  completedStudentIds?: string[];
+}
+
 export interface StudentExamSubmission {
   id: string;
   examId: string;
@@ -211,7 +236,7 @@ export interface StudentExamSubmission {
     part1: number;
     part2: number;
     part3: number;
-    part4: number;
+    part4?: number;
   };
   answers: Record<string, any>;
   infractionCount: number;

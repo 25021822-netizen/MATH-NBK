@@ -54,6 +54,7 @@ const PRESET_FUNCTIONS: PresetFunction[] = [
 
 interface FunctionGrapherProps {
   initialFunctionId?: string;
+  defaultEquation?: string;
   showControls?: boolean;
 }
 

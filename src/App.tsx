@@ -13,16 +13,15 @@ import {
   SAMPLE_SUBMISSIONS,
 } from './data/mockData';
 import { Navbar } from './components/Navbar';
-import { SkillTreeView } from './components/student/SkillTreeView';
-import { CameraScannerView } from './components/student/CameraScannerView';
-import { SocraticTutorView } from './components/student/SocraticTutorView';
+import { AIMathStudioView } from './components/student/AIMathStudioView';
 import { ExamEngineView } from './components/student/ExamEngineView';
 import { StudentHistoryView } from './components/student/StudentHistoryView';
+import { UserProfileView } from './components/student/UserProfileView';
 import { ClassroomManagerView } from './components/classroom/ClassroomManagerView';
 import { TeacherPortalView } from './components/teacher/TeacherPortalView';
 import { TeacherGradebookView } from './components/teacher/TeacherGradebookView';
+import { GeometryCanvasView } from './components/geometry/GeometryCanvasView';
 import { AdminDashboardView } from './components/admin/AdminDashboardView';
-import { ArchitectureDocsView } from './components/docs/ArchitectureDocsView';
 import {
   BookOpen,
   Camera,
@@ -32,10 +31,13 @@ import {
   FileCheck,
   BarChart3,
   FileText,
+  Sparkles,
+  Compass,
+  User,
 } from 'lucide-react';
 
 export default function App() {
-  const [currentTab, setCurrentTab] = useState<string>('home');
+  const [currentTab, setCurrentTab] = useState<string>('ask_ai');
   const [userRole, setUserRole] = useState<UserRole>('student');
   const [userProfile, setUserProfile] = useState(INITIAL_USER_PROFILE);
   const [deviceMode, setDeviceMode] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
@@ -86,23 +88,42 @@ export default function App() {
 
   // Nội dung màn hình theo tab hiện tại và vai trò người dùng
   const renderCurrentView = () => {
-    if (currentTab === 'architecture_docs') {
-      return <ArchitectureDocsView />;
+    // 1. Hồ Sơ Người Dùng (Học sinh, Giáo viên, Quản trị)
+    if (currentTab === 'profile') {
+      return (
+        <UserProfileView
+          userProfile={userProfile}
+          onUpdateProfile={setUserProfile}
+          classrooms={classrooms}
+          submissions={submissions}
+          onNavigateToClassroom={() => setCurrentTab('classroom')}
+          onToggleTier={handleToggleTier}
+        />
+      );
     }
 
+    // 2. Vẽ Hình 2D & 3D (Học sinh và Giáo viên)
+    if (currentTab === 'geometry') {
+      return <GeometryCanvasView />;
+    }
+
+    // 3. Quản trị viên (Super Admin)
     if (userRole === 'admin') {
       return <AdminDashboardView cheatLogs={cheatLogs} />;
     }
 
+    // 4. Giáo viên
     if (userRole === 'teacher') {
       if (currentTab === 'classroom') {
         return (
           <ClassroomManagerView
             userRole={userRole}
             currentUserId="usr_teacher_01"
+            currentUserName="ThS. Trần Văn Minh"
             classrooms={classrooms}
             onUpdateClassrooms={setClassrooms}
             examsList={examsList}
+            onUpdateExamsList={setExamsList}
             onSelectExamToTake={(examId) => {
               setActiveExamId(examId);
               setCurrentTab('exam');
@@ -138,6 +159,20 @@ export default function App() {
             examsList={examsList}
             activeExamId={activeExamId}
             onSelectExamId={setActiveExamId}
+            submissions={submissions}
+          />
+        );
+      }
+
+      if (currentTab === 'ask_ai' || currentTab === 'scanner' || currentTab === 'tutor') {
+        return (
+          <AIMathStudioView
+            dailyScanCount={userProfile.dailyScanCount}
+            maxDailyScans={userProfile.maxDailyScans}
+            tier={userProfile.tier}
+            onIncrementScan={handleIncrementScan}
+            onUpgradeTier={handleToggleTier}
+            onStartExam={() => setCurrentTab('exam')}
           />
         );
       }
@@ -145,6 +180,7 @@ export default function App() {
       // Default for teacher: Teacher Portal (Tạo đề thi thủ công & Tải PDF)
       return (
         <TeacherPortalView
+          classrooms={classrooms}
           onPublishExam={handlePublishExam}
           onPreviewExam={(newExam) => {
             handlePublishExam(newExam);
@@ -154,26 +190,18 @@ export default function App() {
       );
     }
 
-    // Role: Student
+    // 5. Học sinh
     switch (currentTab) {
-      case 'home':
-        return (
-          <SkillTreeView
-            onStartExam={() => setCurrentTab('exam')}
-            onOpenScanner={() => setCurrentTab('scanner')}
-            onOpenTutor={() => setCurrentTab('tutor')}
-            userXp={userProfile.xp}
-            streakDays={userProfile.streakDays}
-          />
-        );
       case 'classroom':
         return (
           <ClassroomManagerView
             userRole={userRole}
             currentUserId={userProfile.id}
+            currentUserName={userProfile.name}
             classrooms={classrooms}
             onUpdateClassrooms={setClassrooms}
             examsList={examsList}
+            onUpdateExamsList={setExamsList}
             onSelectExamToTake={(examId) => {
               setActiveExamId(examId);
               setCurrentTab('exam');
@@ -194,18 +222,6 @@ export default function App() {
             onOpenExamHub={() => setCurrentTab('exam')}
           />
         );
-      case 'scanner':
-        return (
-          <CameraScannerView
-            dailyScanCount={userProfile.dailyScanCount}
-            maxDailyScans={userProfile.maxDailyScans}
-            tier={userProfile.tier}
-            onIncrementScan={handleIncrementScan}
-            onUpgradeTier={handleToggleTier}
-          />
-        );
-      case 'tutor':
-        return <SocraticTutorView />;
       case 'exam':
         return (
           <ExamEngineView
@@ -217,16 +233,22 @@ export default function App() {
             onViewHistory={() => setCurrentTab('student_history')}
             studentProfile={{ id: userProfile.id, name: userProfile.name, email: userProfile.email }}
             defaultClassId="cls_12a1"
+            submissions={submissions}
           />
         );
+      case 'ask_ai':
+      case 'scanner':
+      case 'tutor':
       default:
+        // Gộp Quét bài tập AI và Gia sư Socratic thành 1 mục mang tên "Hỏi AI"
         return (
-          <SkillTreeView
+          <AIMathStudioView
+            dailyScanCount={userProfile.dailyScanCount}
+            maxDailyScans={userProfile.maxDailyScans}
+            tier={userProfile.tier}
+            onIncrementScan={handleIncrementScan}
+            onUpgradeTier={handleToggleTier}
             onStartExam={() => setCurrentTab('exam')}
-            onOpenScanner={() => setCurrentTab('scanner')}
-            onOpenTutor={() => setCurrentTab('tutor')}
-            userXp={userProfile.xp}
-            streakDays={userProfile.streakDays}
           />
         );
     }
@@ -241,7 +263,7 @@ export default function App() {
         userRole={userRole}
         onSelectRole={(newRole) => {
           setUserRole(newRole);
-          if (newRole === 'student') setCurrentTab('home');
+          if (newRole === 'student') setCurrentTab('ask_ai');
           else if (newRole === 'teacher') setCurrentTab('classroom');
           else setCurrentTab('admin_dashboard');
         }}
@@ -316,17 +338,28 @@ export default function App() {
                     <Award size={18} />
                     <span className="text-[10px]">Phòng Thi</span>
                   </button>
+                  <button
+                    onClick={() => setCurrentTab('geometry')}
+                    className={`flex flex-col items-center gap-0.5 ${
+                      currentTab === 'geometry' ? 'text-blue-600 font-bold' : 'text-slate-400'
+                    }`}
+                  >
+                    <Compass size={18} />
+                    <span className="text-[10px]">Vẽ Hình</span>
+                  </button>
                 </>
               ) : (
                 <>
                   <button
-                    onClick={() => setCurrentTab('home')}
+                    onClick={() => setCurrentTab('ask_ai')}
                     className={`flex flex-col items-center gap-0.5 ${
-                      currentTab === 'home' ? 'text-blue-600 font-bold' : 'text-slate-400'
+                      currentTab === 'ask_ai' || currentTab === 'scanner' || currentTab === 'tutor'
+                        ? 'text-blue-600 font-bold'
+                        : 'text-slate-400'
                     }`}
                   >
-                    <BookOpen size={18} />
-                    <span className="text-[10px]">Lộ trình</span>
+                    <Sparkles size={18} />
+                    <span className="text-[10px]">Hỏi AI</span>
                   </button>
                   <button
                     onClick={() => setCurrentTab('classroom')}
@@ -347,15 +380,6 @@ export default function App() {
                     <span className="text-[10px]">Bài đã làm</span>
                   </button>
                   <button
-                    onClick={() => setCurrentTab('scanner')}
-                    className={`flex flex-col items-center gap-0.5 ${
-                      currentTab === 'scanner' ? 'text-blue-600 font-bold' : 'text-slate-400'
-                    }`}
-                  >
-                    <Camera size={18} />
-                    <span className="text-[10px]">Quét AI</span>
-                  </button>
-                  <button
                     onClick={() => setCurrentTab('exam')}
                     className={`flex flex-col items-center gap-0.5 ${
                       currentTab === 'exam' ? 'text-blue-600 font-bold' : 'text-slate-400'
@@ -364,6 +388,15 @@ export default function App() {
                     <Award size={18} />
                     <span className="text-[10px]">Thi BGD</span>
                   </button>
+                  <button
+                    onClick={() => setCurrentTab('geometry')}
+                    className={`flex flex-col items-center gap-0.5 ${
+                      currentTab === 'geometry' ? 'text-blue-600 font-bold' : 'text-slate-400'
+                    }`}
+                  >
+                    <Compass size={18} />
+                    <span className="text-[10px]">Vẽ Hình</span>
+                  </button>
                 </>
               )}
             </div>
@@ -371,19 +404,14 @@ export default function App() {
         )}
       </main>
 
-      {/* Quiet Footer */}
+      {/* Footer */}
       <footer className="bg-white border-t border-slate-200 py-6 px-4 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <p>© 2026 Math&NBK Platform. Hệ thống Giáo dục Toán học THPT Chuẩn Quốc Gia.</p>
           <div className="flex items-center gap-4 text-slate-400">
             <span>Phiên bản 2.6 (GDPT 2018)</span>
             <span>·</span>
-            <button
-              onClick={() => setCurrentTab('architecture_docs')}
-              className="hover:text-blue-600 transition-colors"
-            >
-              Tài Liệu Kỹ Thuật Clean Architecture
-            </button>
+            <span>Học & Thi Trắc Nghiệm Thông Minh</span>
           </div>
         </div>
       </footer>

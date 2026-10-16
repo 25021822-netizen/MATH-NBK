@@ -1,6 +1,6 @@
 import React from 'react';
 import { UserRole, AccountTier } from '../types/math';
-import { BookOpen, Flame, Zap, Smartphone, Monitor, Tablet, Sparkles, UserCheck, Users } from 'lucide-react';
+import { BookOpen, Flame, Zap, Smartphone, Monitor, Tablet, Sparkles, UserCheck, Users, Compass, User } from 'lucide-react';
 
 interface NavbarProps {
   currentTab: string;
@@ -43,7 +43,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             href="#"
             onClick={(e) => {
               e.preventDefault();
-              onSelectTab('home');
+              if (userRole === 'teacher') onSelectTab('classroom');
+              else if (userRole === 'admin') onSelectTab('admin_dashboard');
+              else onSelectTab('ask_ai');
             }}
             className="flex items-center gap-2.5 group"
           >
@@ -62,18 +64,19 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Zone 2: Navigation Links (Single-line, whitespace-nowrap) */}
-        <nav className="hidden md:flex items-center gap-5 text-sm font-medium text-slate-600">
+        <nav className="hidden md:flex items-center gap-4 lg:gap-5 text-sm font-medium text-slate-600">
           {userRole === 'student' && (
             <>
               <button
-                onClick={() => onSelectTab('home')}
-                className={`whitespace-nowrap transition-colors py-1 ${
-                  currentTab === 'home'
+                onClick={() => onSelectTab('ask_ai')}
+                className={`whitespace-nowrap transition-colors py-1 flex items-center gap-1.5 ${
+                  currentTab === 'ask_ai' || currentTab === 'scanner' || currentTab === 'tutor'
                     ? 'text-blue-600 font-bold border-b-2 border-blue-600'
                     : 'hover:text-slate-900'
                 }`}
               >
-                Lộ Trình Học
+                <Sparkles size={15} className="text-blue-600" />
+                <span>Hỏi AI</span>
               </button>
               <button
                 onClick={() => onSelectTab('classroom')}
@@ -96,26 +99,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 Bài Đã Làm
               </button>
               <button
-                onClick={() => onSelectTab('scanner')}
-                className={`whitespace-nowrap transition-colors py-1 ${
-                  currentTab === 'scanner'
-                    ? 'text-blue-600 font-bold border-b-2 border-blue-600'
-                    : 'hover:text-slate-900'
-                }`}
-              >
-                Quét Bài Tập AI
-              </button>
-              <button
-                onClick={() => onSelectTab('tutor')}
-                className={`whitespace-nowrap transition-colors py-1 ${
-                  currentTab === 'tutor'
-                    ? 'text-blue-600 font-bold border-b-2 border-blue-600'
-                    : 'hover:text-slate-900'
-                }`}
-              >
-                Gia Sư Socratic
-              </button>
-              <button
                 onClick={() => onSelectTab('exam')}
                 className={`whitespace-nowrap transition-colors py-1 ${
                   currentTab === 'exam'
@@ -124,6 +107,28 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }`}
               >
                 Thi Thử BGD
+              </button>
+              <button
+                onClick={() => onSelectTab('geometry')}
+                className={`whitespace-nowrap transition-colors py-1 flex items-center gap-1 ${
+                  currentTab === 'geometry'
+                    ? 'text-blue-600 font-bold border-b-2 border-blue-600'
+                    : 'hover:text-slate-900'
+                }`}
+              >
+                <Compass size={14} />
+                <span>Vẽ Hình 2D/3D</span>
+              </button>
+              <button
+                onClick={() => onSelectTab('profile')}
+                className={`whitespace-nowrap transition-colors py-1 flex items-center gap-1 ${
+                  currentTab === 'profile'
+                    ? 'text-blue-600 font-bold border-b-2 border-blue-600'
+                    : 'hover:text-slate-900'
+                }`}
+              >
+                <User size={14} />
+                <span>Hồ Sơ</span>
               </button>
             </>
           )}
@@ -170,32 +175,67 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 Xem Trước Phòng Thi
               </button>
+              <button
+                onClick={() => onSelectTab('geometry')}
+                className={`whitespace-nowrap transition-colors py-1 flex items-center gap-1 ${
+                  currentTab === 'geometry'
+                    ? 'text-blue-600 font-bold border-b-2 border-blue-600'
+                    : 'hover:text-slate-900'
+                }`}
+              >
+                <Compass size={14} />
+                <span>Vẽ Hình 2D/3D</span>
+              </button>
+              <button
+                onClick={() => onSelectTab('ask_ai')}
+                className={`whitespace-nowrap transition-colors py-1 flex items-center gap-1 ${
+                  currentTab === 'ask_ai' || currentTab === 'scanner' || currentTab === 'tutor'
+                    ? 'text-blue-600 font-bold border-b-2 border-blue-600'
+                    : 'hover:text-slate-900'
+                }`}
+              >
+                <Sparkles size={14} className="text-blue-600" />
+                <span>Hỏi AI</span>
+              </button>
+              <button
+                onClick={() => onSelectTab('profile')}
+                className={`whitespace-nowrap transition-colors py-1 flex items-center gap-1 ${
+                  currentTab === 'profile'
+                    ? 'text-blue-600 font-bold border-b-2 border-blue-600'
+                    : 'hover:text-slate-900'
+                }`}
+              >
+                <User size={14} />
+                <span>Hồ Sơ</span>
+              </button>
             </>
           )}
 
           {userRole === 'admin' && (
-            <button
-              onClick={() => onSelectTab('admin_dashboard')}
-              className={`whitespace-nowrap transition-colors py-1 ${
-                currentTab === 'admin_dashboard'
-                  ? 'text-blue-600 font-bold border-b-2 border-blue-600'
-                  : 'hover:text-slate-900'
-              }`}
-            >
-              Trung Tâm Quản Trị & Token AI
-            </button>
+            <>
+              <button
+                onClick={() => onSelectTab('admin_dashboard')}
+                className={`whitespace-nowrap transition-colors py-1 ${
+                  currentTab === 'admin_dashboard'
+                    ? 'text-blue-600 font-bold border-b-2 border-blue-600'
+                    : 'hover:text-slate-900'
+                }`}
+              >
+                Trung Tâm Quản Trị & Token AI
+              </button>
+              <button
+                onClick={() => onSelectTab('profile')}
+                className={`whitespace-nowrap transition-colors py-1 flex items-center gap-1 ${
+                  currentTab === 'profile'
+                    ? 'text-blue-600 font-bold border-b-2 border-blue-600'
+                    : 'hover:text-slate-900'
+                }`}
+              >
+                <User size={14} />
+                <span>Hồ Sơ</span>
+              </button>
+            </>
           )}
-
-          <button
-            onClick={() => onSelectTab('architecture_docs')}
-            className={`whitespace-nowrap transition-colors py-1 ${
-              currentTab === 'architecture_docs'
-                ? 'text-indigo-600 font-bold border-b-2 border-indigo-600'
-                : 'hover:text-slate-900 text-slate-500'
-            }`}
-          >
-            Kiến Trúc & Mã Nguồn React Native
-          </button>
         </nav>
 
         {/* Zone 3: 1 Primary Action & Context Controls */}
@@ -272,8 +312,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 key={r}
                 onClick={() => {
                   onSelectRole(r);
-                  if (r === 'student') onSelectTab('home');
-                  if (r === 'teacher') onSelectTab('teacher_portal');
+                  if (r === 'student') onSelectTab('ask_ai');
+                  if (r === 'teacher') onSelectTab('classroom');
                   if (r === 'admin') onSelectTab('admin_dashboard');
                 }}
                 className={`px-2.5 py-1 text-xs font-semibold rounded-lg capitalize transition-all whitespace-nowrap ${
