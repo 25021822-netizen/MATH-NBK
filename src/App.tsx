@@ -3,8 +3,8 @@
  * Bản Quyền: Math&NBK Education Platform
  */
 
-import React, { useState } from 'react';
-import { UserRole, AccountTier, CheatLog, Exam, Classroom, StudentExamSubmission } from './types/math';
+import React, { useEffect, useState } from 'react';
+import { UserRole, AccountTier, CheatLog, Exam, Classroom, StudentExamSubmission, ClassroomLesson, UserProfile } from './types/math';
 import {
   INITIAL_USER_PROFILE,
   SAMPLE_CHEAT_LOGS,
@@ -14,8 +14,7 @@ import {
 } from './data/mockData';
 import { Navbar } from './components/Navbar';
 import { SkillTreeView } from './components/student/SkillTreeView';
-import { CameraScannerView } from './components/student/CameraScannerView';
-import { SocraticTutorView } from './components/student/SocraticTutorView';
+import { MathAssistantView } from './components/student/MathAssistantView';
 import { ExamEngineView } from './components/student/ExamEngineView';
 import { StudentHistoryView } from './components/student/StudentHistoryView';
 import { ClassroomManagerView } from './components/classroom/ClassroomManagerView';
@@ -23,10 +22,12 @@ import { TeacherPortalView } from './components/teacher/TeacherPortalView';
 import { TeacherGradebookView } from './components/teacher/TeacherGradebookView';
 import { AdminDashboardView } from './components/admin/AdminDashboardView';
 import { ArchitectureDocsView } from './components/docs/ArchitectureDocsView';
+import { ProfileView } from './components/ProfileView';
+import { GraphStudioView } from './components/GraphStudioView';
+import { ClassLessonsView } from './components/ClassLessonsView';
 import {
   BookOpen,
-  Camera,
-  MessageSquare,
+  Sparkles,
   Award,
   Users,
   FileCheck,
@@ -34,18 +35,68 @@ import {
   FileText,
 } from 'lucide-react';
 
+function readStoredValue<T>(key: string, fallback: T): T {
+  try {
+    const value = localStorage.getItem(key);
+    return value ? JSON.parse(value) as T : fallback;
+  } catch (error) {
+    console.error(`Không thể đọc dữ liệu "${key}" đã lưu trên trình duyệt.`, error);
+    return fallback;
+  }
+}
+
 export default function App() {
-  const [currentTab, setCurrentTab] = useState<string>('home');
+  const [currentTab, setCurrentTab] = useState<string>('classroom');
+  const [assistantInitialMode, setAssistantInitialMode] = useState<'scanner' | 'tutor'>('scanner');
   const [userRole, setUserRole] = useState<UserRole>('student');
-  const [userProfile, setUserProfile] = useState(INITIAL_USER_PROFILE);
+  const [userProfile, setUserProfile] = useState<UserProfile>(() => readStoredValue('mathnbk.studentProfile', INITIAL_USER_PROFILE));
+  const [teacherProfile, setTeacherProfile] = useState<UserProfile>(() => readStoredValue('mathnbk.teacherProfile', {
+    ...INITIAL_USER_PROFILE,
+    id: 'usr_teacher_01',
+    name: 'ThS. Trần Văn Minh',
+    email: 'minh.tran@thpt-nbk.edu.vn',
+    role: 'teacher',
+    grade: 12,
+    subject: 'Toán THPT',
+    avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=TeacherMinh',
+  }));
   const [deviceMode, setDeviceMode] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [cheatLogs, setCheatLogs] = useState<CheatLog[]>(SAMPLE_CHEAT_LOGS);
-  const [examsList, setExamsList] = useState<Exam[]>([SAMPLE_EXAM_BGD]);
+  const [examsList, setExamsList] = useState<Exam[]>(() => readStoredValue('mathnbk.exams', [SAMPLE_EXAM_BGD]));
   const [activeExamId, setActiveExamId] = useState<string>(SAMPLE_EXAM_BGD.id);
 
   // Nhóm lớp & Kết quả bài nộp của học sinh
-  const [classrooms, setClassrooms] = useState<Classroom[]>(SAMPLE_CLASSROOMS);
-  const [submissions, setSubmissions] = useState<StudentExamSubmission[]>(SAMPLE_SUBMISSIONS);
+  const [classrooms, setClassrooms] = useState<Classroom[]>(() => readStoredValue('mathnbk.classrooms', SAMPLE_CLASSROOMS));
+  const [submissions, setSubmissions] = useState<StudentExamSubmission[]>(() => readStoredValue('mathnbk.submissions', SAMPLE_SUBMISSIONS));
+  const [lessons, setLessons] = useState<ClassroomLesson[]>(() => readStoredValue('mathnbk.lessons', []));
+  const [lessonClassId, setLessonClassId] = useState<string | undefined>();
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('mathnbk.studentProfile', JSON.stringify(userProfile));
+    } catch (error) {
+      console.error('Không thể lưu hồ sơ học sinh trên trình duyệt.', error);
+    }
+  }, [userProfile]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('mathnbk.teacherProfile', JSON.stringify(teacherProfile));
+    } catch (error) {
+      console.error('Không thể lưu hồ sơ giáo viên trên trình duyệt.', error);
+    }
+  }, [teacherProfile]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('mathnbk.classrooms', JSON.stringify(classrooms));
+      localStorage.setItem('mathnbk.exams', JSON.stringify(examsList));
+      localStorage.setItem('mathnbk.lessons', JSON.stringify(lessons));
+      localStorage.setItem('mathnbk.submissions', JSON.stringify(submissions));
+    } catch (error) {
+      console.error('Không thể lưu dữ liệu nhóm lớp, đề thi, bài học hoặc kết quả thi trên trình duyệt.', error);
+    }
+  }, [classrooms, examsList, lessons, submissions]);
 
   const handleToggleTier = () => {
     setUserProfile((prev) => ({
@@ -62,15 +113,25 @@ export default function App() {
     }));
   };
 
+  const openAssistant = (mode: 'scanner' | 'tutor') => {
+    setAssistantInitialMode(mode);
+    setCurrentTab('assistant');
+  };
+
   const handleRecordCheatLog = (log: CheatLog) => {
     setCheatLogs((prev) => [log, ...prev]);
   };
 
-  const handlePublishExam = (newExam: Exam) => {
+  const handlePublishExam = (newExam: Exam, targetClassIds: string[] = []) => {
     setExamsList((prev) => {
       const filtered = prev.filter((e) => e.id !== newExam.id);
       return [newExam, ...filtered];
     });
+    if (targetClassIds.length > 0) {
+      setClassrooms((prev) => prev.map((room) => targetClassIds.includes(room.id)
+        ? { ...room, assignedExamIds: room.assignedExamIds.includes(newExam.id) ? room.assignedExamIds : [...room.assignedExamIds, newExam.id] }
+        : room));
+    }
     setActiveExamId(newExam.id);
   };
 
@@ -95,12 +156,32 @@ export default function App() {
     }
 
     if (userRole === 'teacher') {
+      if (currentTab === 'profile') {
+        return <ProfileView profile={teacherProfile} userRole="teacher" onSave={setTeacherProfile} />;
+      }
+      if (currentTab === 'graph_studio') return <GraphStudioView />;
+      if (currentTab === 'class_lessons') {
+        return (
+          <ClassLessonsView
+            classrooms={classrooms}
+            lessons={lessons}
+            userRole="teacher"
+            userId={teacherProfile.id}
+            userName={teacherProfile.name}
+            initialClassId={lessonClassId}
+            onAddLesson={(lesson) => setLessons((prev) => [lesson, ...prev])}
+          />
+        );
+      }
       if (currentTab === 'classroom') {
         return (
           <ClassroomManagerView
             userRole={userRole}
-            currentUserId="usr_teacher_01"
+            currentUserId={teacherProfile.id}
+            currentUserName={teacherProfile.name}
+            currentUserAvatar={teacherProfile.avatar}
             classrooms={classrooms}
+            lessons={lessons}
             onUpdateClassrooms={setClassrooms}
             examsList={examsList}
             onSelectExamToTake={(examId) => {
@@ -109,6 +190,10 @@ export default function App() {
             }}
             onViewClassGradebook={() => {
               setCurrentTab('teacher_gradebook');
+            }}
+            onCreateLessonForClass={(classId) => {
+              setLessonClassId(classId);
+              setCurrentTab('class_lessons');
             }}
           />
         );
@@ -145,9 +230,11 @@ export default function App() {
       // Default for teacher: Teacher Portal (Tạo đề thi thủ công & Tải PDF)
       return (
         <TeacherPortalView
+          classrooms={classrooms.filter((room) => room.teacherId === teacherProfile.id)}
+          teacherName={teacherProfile.name}
           onPublishExam={handlePublishExam}
-          onPreviewExam={(newExam) => {
-            handlePublishExam(newExam);
+          onPreviewExam={(newExam, targetClassIds) => {
+            handlePublishExam(newExam, targetClassIds);
             setCurrentTab('exam');
           }}
         />
@@ -155,15 +242,33 @@ export default function App() {
     }
 
     // Role: Student
+    if (currentTab === 'profile') {
+      return <ProfileView profile={userProfile} userRole="student" onSave={setUserProfile} />;
+    }
+    if (currentTab === 'graph_studio') return <GraphStudioView />;
+    if (currentTab === 'class_lessons') {
+      return (
+        <ClassLessonsView
+          classrooms={classrooms}
+          lessons={lessons}
+          userRole="student"
+          userId={userProfile.id}
+          userName={userProfile.name}
+          onAddLesson={(lesson) => setLessons((prev) => [lesson, ...prev])}
+        />
+      );
+    }
     switch (currentTab) {
       case 'home':
         return (
           <SkillTreeView
             onStartExam={() => setCurrentTab('exam')}
-            onOpenScanner={() => setCurrentTab('scanner')}
-            onOpenTutor={() => setCurrentTab('tutor')}
+            onOpenScanner={() => openAssistant('scanner')}
+            onOpenTutor={() => openAssistant('tutor')}
             userXp={userProfile.xp}
             streakDays={userProfile.streakDays}
+            userRole={userRole}
+            studentGrade={userProfile.grade}
           />
         );
       case 'classroom':
@@ -171,7 +276,10 @@ export default function App() {
           <ClassroomManagerView
             userRole={userRole}
             currentUserId={userProfile.id}
+            currentUserName={userProfile.name}
+            currentUserAvatar={userProfile.avatar}
             classrooms={classrooms}
+            lessons={lessons}
             onUpdateClassrooms={setClassrooms}
             examsList={examsList}
             onSelectExamToTake={(examId) => {
@@ -194,18 +302,19 @@ export default function App() {
             onOpenExamHub={() => setCurrentTab('exam')}
           />
         );
+      case 'assistant':
       case 'scanner':
+      case 'tutor':
         return (
-          <CameraScannerView
+          <MathAssistantView
             dailyScanCount={userProfile.dailyScanCount}
             maxDailyScans={userProfile.maxDailyScans}
             tier={userProfile.tier}
             onIncrementScan={handleIncrementScan}
             onUpgradeTier={handleToggleTier}
+            initialMode={currentTab === 'tutor' ? 'tutor' : currentTab === 'scanner' ? 'scanner' : assistantInitialMode}
           />
         );
-      case 'tutor':
-        return <SocraticTutorView />;
       case 'exam':
         return (
           <ExamEngineView
@@ -216,6 +325,7 @@ export default function App() {
             onSubmitExam={handleAddSubmission}
             onViewHistory={() => setCurrentTab('student_history')}
             studentProfile={{ id: userProfile.id, name: userProfile.name, email: userProfile.email }}
+            submissions={submissions}
             defaultClassId="cls_12a1"
           />
         );
@@ -223,10 +333,12 @@ export default function App() {
         return (
           <SkillTreeView
             onStartExam={() => setCurrentTab('exam')}
-            onOpenScanner={() => setCurrentTab('scanner')}
-            onOpenTutor={() => setCurrentTab('tutor')}
+            onOpenScanner={() => openAssistant('scanner')}
+            onOpenTutor={() => openAssistant('tutor')}
             userXp={userProfile.xp}
             streakDays={userProfile.streakDays}
+            userRole={userRole}
+            studentGrade={userProfile.grade}
           />
         );
     }
@@ -241,7 +353,7 @@ export default function App() {
         userRole={userRole}
         onSelectRole={(newRole) => {
           setUserRole(newRole);
-          if (newRole === 'student') setCurrentTab('home');
+          if (newRole === 'student') setCurrentTab('classroom');
           else if (newRole === 'teacher') setCurrentTab('classroom');
           else setCurrentTab('admin_dashboard');
         }}
@@ -316,17 +428,44 @@ export default function App() {
                     <Award size={18} />
                     <span className="text-[10px]">Phòng Thi</span>
                   </button>
+                  <button
+                    onClick={() => setCurrentTab('class_lessons')}
+                    className={`flex flex-col items-center gap-0.5 ${
+                      currentTab === 'class_lessons' ? 'text-blue-600 font-bold' : 'text-slate-400'
+                    }`}
+                  >
+                    <BookOpen size={18} />
+                    <span className="text-[10px]">Bài học</span>
+                  </button>
+                  <button
+                    onClick={() => setCurrentTab('graph_studio')}
+                    className={`flex flex-col items-center gap-0.5 ${
+                      currentTab === 'graph_studio' ? 'text-blue-600 font-bold' : 'text-slate-400'
+                    }`}
+                  >
+                    <BarChart3 size={18} />
+                    <span className="text-[10px]">Đồ thị</span>
+                  </button>
+                  <button
+                    onClick={() => setCurrentTab('profile')}
+                    className={`flex flex-col items-center gap-0.5 ${
+                      currentTab === 'profile' ? 'text-blue-600 font-bold' : 'text-slate-400'
+                    }`}
+                  >
+                    <Users size={18} />
+                    <span className="text-[10px]">Hồ sơ</span>
+                  </button>
                 </>
               ) : (
                 <>
                   <button
-                    onClick={() => setCurrentTab('home')}
+                    onClick={() => setCurrentTab('class_lessons')}
                     className={`flex flex-col items-center gap-0.5 ${
-                      currentTab === 'home' ? 'text-blue-600 font-bold' : 'text-slate-400'
+                      currentTab === 'class_lessons' ? 'text-blue-600 font-bold' : 'text-slate-400'
                     }`}
                   >
                     <BookOpen size={18} />
-                    <span className="text-[10px]">Lộ trình</span>
+                    <span className="text-[10px]">Bài học</span>
                   </button>
                   <button
                     onClick={() => setCurrentTab('classroom')}
@@ -347,13 +486,15 @@ export default function App() {
                     <span className="text-[10px]">Bài đã làm</span>
                   </button>
                   <button
-                    onClick={() => setCurrentTab('scanner')}
+                    onClick={() => setCurrentTab('assistant')}
                     className={`flex flex-col items-center gap-0.5 ${
-                      currentTab === 'scanner' ? 'text-blue-600 font-bold' : 'text-slate-400'
+                      currentTab === 'assistant' || currentTab === 'scanner' || currentTab === 'tutor'
+                        ? 'text-blue-600 font-bold'
+                        : 'text-slate-400'
                     }`}
                   >
-                    <Camera size={18} />
-                    <span className="text-[10px]">Quét AI</span>
+                    <Sparkles size={18} />
+                    <span className="text-[10px]">Trợ lý AI</span>
                   </button>
                   <button
                     onClick={() => setCurrentTab('exam')}
@@ -363,6 +504,33 @@ export default function App() {
                   >
                     <Award size={18} />
                     <span className="text-[10px]">Thi BGD</span>
+                  </button>
+                  <button
+                    onClick={() => setCurrentTab('class_lessons')}
+                    className={`flex flex-col items-center gap-0.5 ${
+                      currentTab === 'class_lessons' ? 'text-blue-600 font-bold' : 'text-slate-400'
+                    }`}
+                  >
+                    <BookOpen size={18} />
+                    <span className="text-[10px]">Bài học</span>
+                  </button>
+                  <button
+                    onClick={() => setCurrentTab('graph_studio')}
+                    className={`flex flex-col items-center gap-0.5 ${
+                      currentTab === 'graph_studio' ? 'text-blue-600 font-bold' : 'text-slate-400'
+                    }`}
+                  >
+                    <BarChart3 size={18} />
+                    <span className="text-[10px]">Đồ thị</span>
+                  </button>
+                  <button
+                    onClick={() => setCurrentTab('profile')}
+                    className={`flex flex-col items-center gap-0.5 ${
+                      currentTab === 'profile' ? 'text-blue-600 font-bold' : 'text-slate-400'
+                    }`}
+                  >
+                    <Users size={18} />
+                    <span className="text-[10px]">Hồ sơ</span>
                   </button>
                 </>
               )}
@@ -377,13 +545,17 @@ export default function App() {
           <p>© 2026 Math&NBK Platform. Hệ thống Giáo dục Toán học THPT Chuẩn Quốc Gia.</p>
           <div className="flex items-center gap-4 text-slate-400">
             <span>Phiên bản 2.6 (GDPT 2018)</span>
-            <span>·</span>
-            <button
-              onClick={() => setCurrentTab('architecture_docs')}
-              className="hover:text-blue-600 transition-colors"
-            >
-              Tài Liệu Kỹ Thuật Clean Architecture
-            </button>
+            {userRole === 'admin' && (
+              <>
+                <span>·</span>
+                <button
+                  onClick={() => setCurrentTab('architecture_docs')}
+                  className="hover:text-blue-600 transition-colors"
+                >
+                  Tài Liệu Kỹ Thuật Clean Architecture
+                </button>
+              </>
+            )}
           </div>
         </div>
       </footer>

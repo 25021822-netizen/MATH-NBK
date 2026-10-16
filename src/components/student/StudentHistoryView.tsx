@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { StudentExamSubmission, Exam, Classroom } from '../../types/math';
 import { MathView } from '../MathView';
+import { calculateExamTotalPoints } from '../../lib/scoringEngine';
 import {
   FileCheck,
   Award,
@@ -39,6 +40,11 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
   onRetakeExam,
   onOpenExamHub,
 }) => {
+  const getMaxPoints = (examId: string) => {
+    const exam = examsList.find((item) => item.id === examId);
+    return (exam ? calculateExamTotalPoints(exam.questions) : 0) || 10;
+  };
+
   const [searchTerm, setSearchTerm] = useState('');
   const [scoreFilter, setScoreFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
   const [selectedSubmission, setSelectedSubmission] = useState<StudentExamSubmission | null>(null);
@@ -51,9 +57,11 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
   // Bộ lọc tìm kiếm và mức điểm
   const filteredSubmissions = useMemo(() => {
     return studentSubmissions.filter((sub) => {
-      if (scoreFilter === 'high' && sub.score < 8.0) return false;
-      if (scoreFilter === 'medium' && (sub.score < 5.0 || sub.score >= 8.0)) return false;
-      if (scoreFilter === 'low' && sub.score >= 5.0) return false;
+      const maxPoints = getMaxPoints(sub.examId);
+      const normalizedScore = (sub.score / maxPoints) * 10;
+      if (scoreFilter === 'high' && normalizedScore < 8.0) return false;
+      if (scoreFilter === 'medium' && (normalizedScore < 5.0 || normalizedScore >= 8.0)) return false;
+      if (scoreFilter === 'low' && normalizedScore >= 5.0) return false;
 
       if (searchTerm.trim()) {
         const query = searchTerm.toLowerCase();
@@ -61,14 +69,16 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
       }
       return true;
     }).sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
-  }, [studentSubmissions, scoreFilter, searchTerm]);
+  }, [studentSubmissions, examsList, scoreFilter, searchTerm]);
 
   // Thống kê cá nhân
   const stats = useMemo(() => {
     if (studentSubmissions.length === 0) {
       return { total: 0, avg: 0, max: 0, totalHours: 0, highCount: 0 };
     }
-    const scores = studentSubmissions.map((s) => s.score);
+    const scores = studentSubmissions.map((submission) =>
+      (submission.score / getMaxPoints(submission.examId)) * 10,
+    );
     const sum = scores.reduce((a, b) => a + b, 0);
     const avg = sum / scores.length;
     const max = Math.max(...scores);
@@ -83,7 +93,7 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
       totalHours,
       highCount,
     };
-  }, [studentSubmissions]);
+  }, [studentSubmissions, examsList]);
 
   // Đề thi của bài nộp đang xem
   const activeExam = useMemo(() => {
@@ -103,7 +113,7 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
             Tổng Hợp Các Bài Thi Đã Làm
           </h1>
           <p className="text-slate-500 text-xs sm:text-sm mt-1 max-w-xl">
-            Theo dõi tiến trình rèn luyện, xem lại chi tiết từng câu hỏi đúng/sai, thang điểm 4 phần và ôn luyện lại những phần còn yếu.
+            Theo dõi tiến trình rèn luyện, xem lại chi tiết từng câu hỏi đúng/sai và ôn luyện lại những phần còn yếu.
           </p>
         </div>
 
@@ -213,8 +223,11 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
         <div className="space-y-4">
           {filteredSubmissions.map((sub) => {
             const cls = classrooms.find((c) => c.id === sub.classId);
-            const isExcellent = sub.score >= 8.0;
-            const isGood = sub.score >= 6.5 && sub.score < 8.0;
+            const submissionExam = examsList.find((exam) => exam.id === sub.examId);
+            const maxPoints = getMaxPoints(sub.examId);
+            const normalizedScore = (sub.score / maxPoints) * 10;
+            const isExcellent = normalizedScore >= 8.0;
+            const isGood = normalizedScore >= 6.5 && normalizedScore < 8.0;
 
             return (
               <div
@@ -240,18 +253,22 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
 
                   {/* Part scores summary */}
                   <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
+                    {(!submissionExam || submissionExam.questions.some((question) => question.part === 'part_1_mcq')) && (
                     <span className="text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg">
                       P.I: <strong>{sub.partScores.part1}đ</strong>
                     </span>
+                    )}
+                    {(!submissionExam || submissionExam.questions.some((question) => question.part === 'part_2_true_false')) && (
                     <span className="text-purple-700 bg-purple-50 px-2 py-0.5 rounded-lg">
                       P.II: <strong>{sub.partScores.part2}đ</strong>
                     </span>
+                    )}
+                    {(!submissionExam || submissionExam.questions.some((question) => question.part === 'part_3_short_answer')) && (
                     <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg">
                       P.III: <strong>{sub.partScores.part3}đ</strong>
                     </span>
-                    <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg">
-                      P.IV: <strong>{sub.partScores.part4}đ</strong>
-                    </span>
+                    )}
+
 
                     {sub.infractionCount > 0 ? (
                       <span className="text-rose-600 bg-rose-50 px-2 py-0.5 rounded-lg font-sans font-bold flex items-center gap-1">
@@ -277,13 +294,13 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
                           ? 'text-emerald-600'
                           : isGood
                           ? 'text-blue-600'
-                          : sub.score >= 5.0
+                          : normalizedScore >= 5.0
                           ? 'text-amber-600'
                           : 'text-rose-600'
                       }`}
                     >
                       {sub.score.toFixed(2)}
-                      <span className="text-xs text-slate-400 font-sans font-normal">/10đ</span>
+                      <span className="text-xs text-slate-400 font-sans font-normal">/{maxPoints}đ</span>
                     </span>
                   </div>
 
@@ -350,7 +367,7 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
                 <div className="text-right">
                   <span className="text-xs text-slate-400 font-semibold block">Điểm số:</span>
                   <span className="text-2xl font-black font-mono text-blue-600">
-                    {selectedSubmission.score.toFixed(2)}/10
+                    {selectedSubmission.score.toFixed(2)}/{calculateExamTotalPoints(activeExam.questions)}
                   </span>
                 </div>
                 <button
@@ -380,7 +397,7 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
                   const dAns = selectedSubmission.answers[`${q.id}_d`];
                   studentDisplayAns = `a:${aAns ? 'Đ' : 'S'}, b:${bAns ? 'Đ' : 'S'}, c:${cAns ? 'Đ' : 'S'}, d:${dAns ? 'Đ' : 'S'}`;
                   correctDisplayAns = q.items.map((it) => `${it.subKey}:${it.isCorrect ? 'Đ' : 'S'}`).join(', ');
-                } else if (q.part === 'part_3_short_answer' || q.part === 'part_4_essay') {
+                } else if (q.part === 'part_3_short_answer') {
                   studentDisplayAns = selectedSubmission.answers[q.id] || 'Chưa trả lời';
                   correctDisplayAns = q.correctAnswer;
                   isQuestionCorrect = studentDisplayAns.toString().trim() === correctDisplayAns.toString().trim();
@@ -410,6 +427,7 @@ export const StudentHistoryView: React.FC<StudentHistoryViewProps> = ({
                     </div>
 
                     <p className="font-semibold text-slate-900">{q.prompt}</p>
+                    {q.imageUrl && <img src={q.imageUrl} alt={`Hình minh họa câu ${q.questionNumber}`} className={`block max-h-80 rounded-xl border border-slate-200 object-contain ${q.imageAlignment === 'left' ? 'mr-auto' : q.imageAlignment === 'right' ? 'ml-auto' : 'mx-auto'}`} />}
 
                     {q.latex && (
                       <div className="p-2.5 bg-slate-50 rounded-xl">

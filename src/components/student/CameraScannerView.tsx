@@ -10,6 +10,7 @@ interface CameraScannerViewProps {
   tier: AccountTier;
   onIncrementScan: () => void;
   onUpgradeTier: () => void;
+  onAskTutor: (question: string) => void;
 }
 
 export const CameraScannerView: React.FC<CameraScannerViewProps> = ({
@@ -18,6 +19,7 @@ export const CameraScannerView: React.FC<CameraScannerViewProps> = ({
   tier,
   onIncrementScan,
   onUpgradeTier,
+  onAskTutor,
 }) => {
   const [selectedSample, setSelectedSample] = useState(SAMPLE_OCR_PROBLEMS[0]);
   const [customInputText, setCustomInputText] = useState('');
@@ -303,6 +305,18 @@ export const CameraScannerView: React.FC<CameraScannerViewProps> = ({
                   <CheckCircle2 size={24} className="text-white" />
                 </div>
               </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  onAskTutor(
+                    `Mình muốn tự tìm cách giải bài này, hãy gợi mở từng bước và đừng đưa đáp án ngay: ${activeSolution.problemText} (${activeSolution.latexFormula})`,
+                  )
+                }
+                className="w-full rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm font-bold text-indigo-700 transition-colors hover:bg-indigo-100"
+              >
+                Hỏi gia sư Socratic về bài này
+              </button>
             </div>
           ) : (
             <div className="h-96 rounded-3xl bg-slate-50 border border-slate-200 flex flex-col items-center justify-center text-slate-400 p-8 text-center">

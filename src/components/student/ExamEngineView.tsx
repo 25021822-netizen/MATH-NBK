@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Exam, Question, CheatLog, StudentExamSubmission } from '../../types/math';
 import { SAMPLE_EXAM_BGD } from '../../data/mockData';
-import { gradePart2TrueFalse, validatePart3ShortAnswerFormat, isAnswerEquivalent } from '../../lib/scoringEngine';
+import { calculateExamTotalPoints, gradePart2TrueFalse, validatePart3ShortAnswerFormat, isAnswerEquivalent } from '../../lib/scoringEngine';
 import { MathView } from '../MathView';
 import { Clock, ShieldAlert, AlertTriangle, Save, CheckCircle2, XCircle, Award, RotateCcw, Send, FileCheck, History } from 'lucide-react';
 
@@ -13,6 +13,7 @@ interface ExamEngineViewProps {
   onSubmitExam?: (submission: StudentExamSubmission) => void;
   onViewHistory?: () => void;
   studentProfile?: { id: string; name: string; email: string };
+  submissions?: StudentExamSubmission[];
   defaultClassId?: string;
 }
 
@@ -24,6 +25,7 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
   onSubmitExam,
   onViewHistory,
   studentProfile,
+  submissions = [],
   defaultClassId = 'cls_12a1',
 }) => {
   const currentExam = examsList.find((e) => e.id === activeExamId) || examsList[0] || SAMPLE_EXAM_BGD;
@@ -37,6 +39,21 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
   const [isDisqualified, setIsDisqualified] = useState<boolean>(false);
   const [scoreReport, setScoreReport] = useState<any | null>(null);
   const [lastAutoSaved, setLastAutoSaved] = useState<string>('');
+  const [currentTime, setCurrentTime] = useState(Date.now());
+  const submissionStartedRef = useRef(false);
+  const submitExamRef = useRef<(reason?: string) => void>(() => undefined);
+  const attemptsUsed = studentProfile
+    ? submissions.filter((submission) => submission.examId === exam.id && submission.studentId === studentProfile.id).length
+    : 0;
+  const isBeforeAvailability = Boolean(exam.availableFrom && currentTime < new Date(exam.availableFrom).getTime());
+  const isAfterDeadline = Boolean(exam.submissionDeadline && currentTime >= new Date(exam.submissionDeadline).getTime());
+  const isAttemptLimitReached = Boolean(studentProfile && exam.maxAttempts && attemptsUsed >= exam.maxAttempts);
+  const canTakeExam = !isBeforeAvailability && !isAfterDeadline && !isAttemptLimitReached;
+
+  useEffect(() => {
+    const clock = setInterval(() => setCurrentTime(Date.now()), 1000);
+    return () => clearInterval(clock);
+  }, []);
 
   // Cập nhật khi chọn đề thi khác
   useEffect(() => {
@@ -48,6 +65,7 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
       setIsDisqualified(false);
       setInfractionCount(0);
       setScoreReport(null);
+      submissionStartedRef.current = false;
     }
   }, [currentExam]);
 
@@ -69,10 +87,20 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
     if (isSubmitted || isDisqualified) return;
 
     const interval = setInterval(() => {
+      const now = Date.now();
+      if (studentProfile) {
+        if (exam.availableFrom && now < new Date(exam.availableFrom).getTime()) return;
+        if (exam.maxAttempts && attemptsUsed >= exam.maxAttempts) return;
+        if (exam.submissionDeadline && now >= new Date(exam.submissionDeadline).getTime()) {
+          clearInterval(interval);
+          submitExamRef.current('Đã đến hạn cuối nộp bài.');
+          return;
+        }
+      }
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(interval);
-          handleSubmitExam('Hết giờ làm bài!');
+          submitExamRef.current('Hết giờ làm bài!');
           return 0;
         }
         return prev - 1;
@@ -80,7 +108,7 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isSubmitted, isDisqualified]);
+  }, [isSubmitted, isDisqualified, studentProfile, exam.id, exam.availableFrom, exam.submissionDeadline, exam.maxAttempts, attemptsUsed]);
 
   // 3. Tự động lưu bản nháp mỗi 10 giây vào LocalStorage
   useEffect(() => {
@@ -98,7 +126,7 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
 
   // 4. Cơ chế chống gian lận đa tầng: Bắt sự kiện rời màn hình / đổi tab
   useEffect(() => {
-    if (isSubmitted || isDisqualified) return;
+    if (isSubmitted || isDisqualified || (studentProfile && !canTakeExam)) return;
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
@@ -117,7 +145,7 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('blur', handleWindowBlur);
     };
-  }, [infractionCount, isSubmitted, isDisqualified]);
+  }, [infractionCount, isSubmitted, isDisqualified, studentProfile, canTakeExam]);
 
   const registerInfraction = (reason: string) => {
     const nextCount = infractionCount + 1;
@@ -154,11 +182,12 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
 
   // 5. Chấm điểm bài thi tự động chuẩn BGD 2025
   const handleSubmitExam = (disqualifyReason?: string) => {
+    if (submissionStartedRef.current) return;
+    submissionStartedRef.current = true;
     let totalScore = 0;
     let part1Score = 0;
     let part2Score = 0;
     let part3Score = 0;
-    let part4Score = 0;
 
     const details: Record<string, any> = {};
 
@@ -183,8 +212,9 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
           d: q.items.find((i) => i.subKey === 'd')?.isCorrect || false,
         };
         const result = gradePart2TrueFalse(studentTF, correctTF);
-        part2Score += result.earnedPoints;
-        details[q.id] = { ...result, studentTF, correctTF };
+        const earnedPoints = result.earnedPoints * q.points;
+        part2Score += earnedPoints;
+        details[q.id] = { ...result, earnedPoints, studentTF, correctTF };
       } else if (q.part === 'part_3_short_answer') {
         const rawAns = answers[q.id] || '';
         const validation = validatePart3ShortAnswerFormat(rawAns);
@@ -192,23 +222,18 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
         const earned = isCorrect ? q.points : 0;
         part3Score += earned;
         details[q.id] = { isCorrect, earned, studentAns: rawAns, correctAnswer: q.correctAnswer };
-      } else if (q.part === 'part_4_essay') {
-        const rawAns = answers[q.id] || '';
-        const isCorrect = isAnswerEquivalent(rawAns, q.correctAnswer, q.acceptedVariants);
-        const earned = isCorrect ? q.points : 0;
-        part4Score += earned;
-        details[q.id] = { isCorrect, earned, studentAns: rawAns, correctAnswer: q.correctAnswer };
       }
     });
 
-    totalScore = part1Score + part2Score + part3Score + part4Score;
+    totalScore = part1Score + part2Score + part3Score;
+    const maxScore = calculateExamTotalPoints(exam.questions);
 
     setScoreReport({
       totalScore: totalScore.toFixed(2),
       part1Score: part1Score.toFixed(2),
       part2Score: part2Score.toFixed(2),
       part3Score: part3Score.toFixed(2),
-      part4Score: part4Score.toFixed(2),
+      maxScore: maxScore.toFixed(2),
       details,
       disqualifyReason,
     });
@@ -230,7 +255,6 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
           part1: Number(part1Score.toFixed(2)),
           part2: Number(part2Score.toFixed(2)),
           part3: Number(part3Score.toFixed(2)),
-          part4: Number(part4Score.toFixed(2)),
         },
         answers,
         infractionCount,
@@ -243,12 +267,44 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
     setIsSubmitted(true);
     localStorage.removeItem(`math_draft_${exam.id}`);
   };
+  submitExamRef.current = handleSubmitExam;
+
+  useEffect(() => {
+    if (studentProfile && !isSubmitted && !isDisqualified && !isBeforeAvailability && isAfterDeadline) {
+      handleSubmitExam('Đã đến hạn cuối nộp bài.');
+    }
+  }, [currentTime, isBeforeAvailability, isAfterDeadline, isSubmitted, isDisqualified, studentProfile]);
 
   const formatTimer = (sec: number) => {
     const m = Math.floor(sec / 60);
     const s = sec % 60;
     return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
   };
+
+  if (studentProfile && !canTakeExam && !isSubmitted) {
+    const message = isBeforeAvailability
+      ? `Bài thi mở lúc ${new Date(exam.availableFrom!).toLocaleString('vi-VN')}.`
+      : isAfterDeadline
+      ? `Đã hết hạn nộp bài (${new Date(exam.submissionDeadline!).toLocaleString('vi-VN')}).`
+      : `Bạn đã sử dụng hết ${exam.maxAttempts} lượt làm bài (${attemptsUsed}/${exam.maxAttempts}).`;
+    return (
+      <div className="mx-auto w-full max-w-3xl space-y-5 px-4 py-10">
+        <section className="rounded-3xl border border-amber-200 bg-amber-50 p-6 sm:p-8">
+          <h2 className="text-xl font-extrabold text-slate-900">{exam.title}</h2>
+          <p className="mt-3 text-sm font-semibold text-amber-900">{message}</p>
+          {exam.maxAttempts && <p className="mt-2 text-xs text-slate-600">Số lượt đã nộp: {attemptsUsed}/{exam.maxAttempts}</p>}
+          {examsList.length > 1 && (
+            <label className="mt-5 block space-y-2 text-xs font-bold text-slate-700">
+              Chọn đề thi khác
+              <select value={exam.id} onChange={(event) => onSelectExamId?.(event.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">
+                {examsList.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
+              </select>
+            </label>
+          )}
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-5xl mx-auto px-4 py-8 space-y-6">
@@ -350,34 +406,37 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
             <div className="text-center bg-blue-50 border border-blue-200 px-6 py-3 rounded-2xl">
               <span className="text-xs font-bold text-blue-600 block uppercase tracking-wider">Tổng Điểm</span>
               <span className="text-3xl font-black text-blue-900 font-mono tabular-nums">
-                {scoreReport.totalScore} / 10.0
+                {scoreReport.totalScore} / {scoreReport.maxScore}
               </span>
             </div>
           </div>
 
           {/* Part Scores Breakdown */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-            <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
-              <span className="text-xs text-slate-500 block">Phần I (MCQ)</span>
-              <span className="text-lg font-bold text-slate-900">{scoreReport.part1Score} / 0.50</span>
-            </div>
-            <div className="p-3 rounded-2xl bg-purple-50 border border-purple-200">
-              <span className="text-xs text-purple-700 block">Phần II (Đúng/Sai)</span>
-              <span className="text-lg font-bold text-purple-900">{scoreReport.part2Score} / 1.00</span>
-            </div>
-            <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200">
-              <span className="text-xs text-amber-700 block">Phần III (Trả lời ngắn)</span>
-              <span className="text-lg font-bold text-amber-900">{scoreReport.part3Score} / 1.00</span>
-            </div>
-            <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200">
-              <span className="text-xs text-emerald-700 block">Phần IV (Tự luận/Số)</span>
-              <span className="text-lg font-bold text-emerald-900">{scoreReport.part4Score} / 0.50</span>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
+            {exam.questions.some((question) => question.part === 'part_1_mcq') && (
+              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
+                <span className="text-xs text-slate-500 block">Phần I (MCQ)</span>
+                <span className="text-lg font-bold text-slate-900">{scoreReport.part1Score} / {calculateExamTotalPoints(exam.questions.filter((question) => question.part === 'part_1_mcq'))}</span>
+              </div>
+            )}
+            {exam.questions.some((question) => question.part === 'part_2_true_false') && (
+              <div className="p-3 rounded-2xl bg-purple-50 border border-purple-200">
+                <span className="text-xs text-purple-700 block">Phần II (Đúng/Sai)</span>
+                <span className="text-lg font-bold text-purple-900">{scoreReport.part2Score} / {calculateExamTotalPoints(exam.questions.filter((question) => question.part === 'part_2_true_false'))}</span>
+              </div>
+            )}
+            {exam.questions.some((question) => question.part === 'part_3_short_answer') && (
+              <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200">
+                <span className="text-xs text-amber-700 block">Phần III (Trả lời ngắn)</span>
+                <span className="text-lg font-bold text-amber-900">{scoreReport.part3Score} / {calculateExamTotalPoints(exam.questions.filter((question) => question.part === 'part_3_short_answer'))}</span>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
-            <button
+            {(!exam.maxAttempts || attemptsUsed < exam.maxAttempts) && <button
               onClick={() => {
+                submissionStartedRef.current = false;
                 setIsSubmitted(false);
                 setIsDisqualified(false);
                 setInfractionCount(0);
@@ -388,7 +447,7 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
             >
               <RotateCcw size={15} />
               <span>Làm Lại Đề Thi Này</span>
-            </button>
+            </button>}
             {onViewHistory && (
               <button
                 onClick={onViewHistory}
@@ -404,7 +463,7 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
 
       {/* Questions Form */}
       <div className="space-y-8">
-        {/* PHẦN 1: TRẮC NGHIỆM 4 PHƯƠNG ÁN */}
+        {exam.questions.some((question) => question.part === 'part_1_mcq') && (
         <div className="space-y-4">
           <div className="flex items-center gap-2 pb-2 border-b border-slate-200">
             <span className="px-2.5 py-1 rounded-lg bg-blue-600 text-white font-extrabold text-xs">Phần I</span>
@@ -426,6 +485,7 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
                     <div className="space-y-1">
                       <span className="text-xs font-bold text-blue-600">Câu {q.questionNumber}:</span>
                       <p className="text-sm font-semibold text-slate-900">{q.prompt}</p>
+                      {q.imageUrl && <img src={q.imageUrl} alt={`Hình minh họa câu ${q.questionNumber}`} className={`block max-h-80 rounded-xl border border-slate-200 object-contain ${q.imageAlignment === 'left' ? 'mr-auto' : q.imageAlignment === 'right' ? 'ml-auto' : 'mx-auto'}`} />}
                       {q.latex && <MathView math={q.latex} block />}
                     </div>
 
@@ -435,7 +495,7 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
                           result.isCorrect ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
                         }`}
                       >
-                        {result.isCorrect ? '+0.25 điểm' : '0 điểm'}
+                        {result.isCorrect ? `+${q.points} điểm` : '0 điểm'}
                       </span>
                     )}
                   </div>
@@ -480,14 +540,16 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
               );
             })}
         </div>
+        )}
 
         {/* PHẦN 2: TRẮC NGHIỆM ĐÚNG/SAI 4 Ý ĐỘC LẬP (LŨY TIẾN 0.1 -> 0.25 -> 0.5 -> 1.0) */}
+        {exam.questions.some((question) => question.part === 'part_2_true_false') && (
         <div className="space-y-4">
           <div className="flex items-center gap-2 pb-2 border-b border-slate-200">
             <span className="px-2.5 py-1 rounded-lg bg-purple-600 text-white font-extrabold text-xs">Phần II</span>
             <div>
               <h3 className="font-extrabold text-base text-slate-900">
-                Câu Hỏi Trắc Nghiệm Đúng/Sai (Tối đa 1.0 điểm / câu)
+                Câu Hỏi Trắc Nghiệm Đúng/Sai (tính theo điểm từng câu)
               </h3>
               <p className="text-xs text-slate-500">
                 Quy tắc tính điểm lũy tiến BGD: Đúng 1 ý = 0.1đ · Đúng 2 ý = 0.25đ · Đúng 3 ý = 0.5đ · Đúng cả 4 ý = 1.0đ
@@ -508,6 +570,7 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
                     <div className="space-y-1">
                       <span className="text-xs font-bold text-purple-600">Câu {q.questionNumber}:</span>
                       <p className="text-sm font-semibold text-slate-900">{q.prompt}</p>
+                      {q.imageUrl && <img src={q.imageUrl} alt={`Hình minh họa câu ${q.questionNumber}`} className={`block max-h-80 rounded-xl border border-slate-200 object-contain ${q.imageAlignment === 'left' ? 'mr-auto' : q.imageAlignment === 'right' ? 'ml-auto' : 'mx-auto'}`} />}
                       {q.latex && <MathView math={q.latex} block />}
                     </div>
 
@@ -576,14 +639,16 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
               );
             })}
         </div>
+        )}
 
         {/* PHẦN 3: CÂU TRẢ LỜI NGẮN (TỐI ĐA 4 KÝ TỰ) */}
+        {exam.questions.some((question) => question.part === 'part_3_short_answer') && (
         <div className="space-y-4">
           <div className="flex items-center gap-2 pb-2 border-b border-slate-200">
             <span className="px-2.5 py-1 rounded-lg bg-amber-600 text-white font-extrabold text-xs">Phần III</span>
             <div>
               <h3 className="font-extrabold text-base text-slate-900">
-                Câu Hỏi Trắc Nghiệm Trả Lời Ngắn (Mỗi câu 0.5 điểm)
+                Câu Hỏi Trắc Nghiệm Trả Lời Ngắn
               </h3>
               <p className="text-xs text-slate-500">
                 Quy chế BGD: Thí sinh điền tối đa 4 ký tự/chữ số (chỉ bao gồm [0-9], '-', ',', '.', '/')
@@ -604,6 +669,7 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
                     <div className="space-y-1">
                       <span className="text-xs font-bold text-amber-600">Câu {q.questionNumber}:</span>
                       <p className="text-sm font-semibold text-slate-900">{q.prompt}</p>
+                      {q.imageUrl && <img src={q.imageUrl} alt={`Hình minh họa câu ${q.questionNumber}`} className={`block max-h-80 rounded-xl border border-slate-200 object-contain ${q.imageAlignment === 'left' ? 'mr-auto' : q.imageAlignment === 'right' ? 'ml-auto' : 'mx-auto'}`} />}
                       {q.latex && <MathView math={q.latex} block />}
                     </div>
 
@@ -613,7 +679,7 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
                           result.isCorrect ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
                         }`}
                       >
-                        {result.isCorrect ? '+0.5 điểm' : '0 điểm'}
+                        {result.isCorrect ? `+${q.points} điểm` : '0 điểm'}
                       </span>
                     )}
                   </div>
@@ -646,74 +712,7 @@ export const ExamEngineView: React.FC<ExamEngineViewProps> = ({
               );
             })}
         </div>
-
-        {/* PHẦN 4: TỰ LUẬN NGẮN / SỐ HỌC (CHUẨN HÓA TỰ ĐỘNG) */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 pb-2 border-b border-slate-200">
-            <span className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white font-extrabold text-xs">Phần IV</span>
-            <div>
-              <h3 className="font-extrabold text-base text-slate-900">
-                Câu Hỏi Số Học / Phân Số Chuẩn Hóa Tự Động (0.5 điểm)
-              </h3>
-              <p className="text-xs text-slate-500">
-                Hệ thống tự động quy đổi tương đương giữa phân số (10/21) và số thập phân (0.476).
-              </p>
-            </div>
-          </div>
-
-          {exam.questions
-            .filter((q) => q.part === 'part_4_essay')
-            .map((q) => {
-              const result = scoreReport?.details[q.id];
-              return (
-                <div
-                  key={q.id}
-                  className="bg-white p-6 rounded-3xl border border-slate-200 space-y-4 shadow-xs"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <span className="text-xs font-bold text-emerald-600">Câu {q.questionNumber}:</span>
-                      <p className="text-sm font-semibold text-slate-900">{q.prompt}</p>
-                      {q.latex && <MathView math={q.latex} block />}
-                    </div>
-
-                    {isSubmitted && result && (
-                      <span
-                        className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                          result.isCorrect ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
-                        }`}
-                      >
-                        {result.isCorrect ? '+0.5 điểm' : '0 điểm'}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="pt-2">
-                    <label className="text-xs font-semibold text-slate-600 block mb-1.5">
-                      Đáp án của bạn (Nhập dạng phân số a/b hoặc số thập phân):
-                    </label>
-                    <input
-                      type="text"
-                      disabled={isSubmitted}
-                      value={answers[q.id] || ''}
-                      onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
-                      placeholder="VD: 10/21 hoặc 0.476"
-                      className="w-full sm:w-64 h-11 px-4 rounded-xl border border-slate-300 font-mono font-bold text-base focus:border-emerald-500 focus:outline-none"
-                    />
-                  </div>
-
-                  {isSubmitted && (
-                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-1">
-                      <span className="font-bold text-emerald-700 block">
-                        Đáp án chuẩn: <span className="font-mono">{q.correctAnswer}</span> (hoặc tương đương)
-                      </span>
-                      <p>{q.explanation}</p>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-        </div>
+        )}
       </div>
 
       {/* Anti-Cheat Warning Modal */}

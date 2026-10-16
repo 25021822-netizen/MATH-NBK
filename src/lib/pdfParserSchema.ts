@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Zod Schema xác thực cấu trúc Đề thi 4 phần chuẩn Bộ Giáo dục & Đào tạo
+ * Zod Schema xác thực các dạng câu hỏi được hỗ trợ trong đề thi.
  */
 
 export const Part1OptionSchema = z.object({
@@ -55,23 +55,10 @@ export const QuestionPart3Schema = z.object({
   points: z.number().positive().default(0.5),
 });
 
-export const QuestionPart4Schema = z.object({
-  id: z.string().default(() => Math.random().toString(36).substring(2, 9)),
-  part: z.literal('part_4_essay'),
-  questionNumber: z.number().int().positive(),
-  prompt: z.string().min(1, 'Nội dung câu hỏi không được để trống'),
-  latex: z.string().optional(),
-  correctAnswer: z.string().min(1, 'Đáp án chuẩn hóa không được để trống'),
-  acceptedVariants: z.array(z.string()).default([]),
-  explanation: z.string().default(''),
-  points: z.number().positive().default(0.5),
-});
-
 export const ExamQuestionSchema = z.discriminatedUnion('part', [
   QuestionPart1Schema,
   QuestionPart2Schema,
   QuestionPart3Schema,
-  QuestionPart4Schema,
 ]);
 
 export const ExamMetadataSchema = z.object({
@@ -79,7 +66,7 @@ export const ExamMetadataSchema = z.object({
   grade: z.union([z.literal(10), z.literal(11), z.literal(12)]),
   year: z.number().int().min(2024).max(2030).default(2025),
   durationMinutes: z.number().int().positive().default(90),
-  totalPoints: z.number().positive().default(10),
+  totalPoints: z.number().positive().optional(),
 });
 
 export const ParsedExamSchema = z.object({
@@ -94,7 +81,7 @@ export type ParsedExamData = z.infer<typeof ParsedExamSchema>;
  */
 export const PDF_PARSER_SYSTEM_PROMPT = `
 Bạn là chuyên gia chuyển đổi và bóc tách đề thi Toán học THPT Việt Nam (Bộ Giáo dục & Đào tạo định dạng mới).
-Nhiệm vụ của bạn là đọc nội dung văn bản đề thi (từ file PDF hoặc hình ảnh đề thi) và chuyển đổi thành cấu trúc JSON nghiêm ngặt tuân thủ 4 phần sau:
+Nhiệm vụ của bạn là đọc nội dung văn bản đề thi (từ file PDF hoặc hình ảnh đề thi) và chuyển đổi thành cấu trúc JSON nghiêm ngặt theo các dạng câu hỏi sau:
 
 1. PHẦN 1 (part_1_mcq): Trắc nghiệm 4 lựa chọn nhiều phương án.
    - Luôn có đúng 4 phương án: key = 'A' | 'B' | 'C' | 'D'.
@@ -108,9 +95,7 @@ Nhiệm vụ của bạn là đọc nội dung văn bản đề thi (từ file P
    - Thí sinh điền tối đa 4 ký tự/chữ số (chỉ gồm [0-9], '-', ',', '.', '/').
    - Ví dụ correctAnswer: "-2/3", "3.14", "12", "-0.5".
 
-4. PHẦN 4 (part_4_essay): Tự luận ngắn hoặc kết quả số học dạng phân số/thập phân.
-   - correctAnswer là kết quả chuẩn, acceptedVariants chứa các dạng tương đương (ví dụ ["1/2", "0.5"]).
-
+Đề thi có thể chỉ gồm một hoặc nhiều phần; không bắt buộc phải có đủ cả ba phần.
 Quy tắc bắt buộc:
 - Mọi công thức toán học phải được bọc trong cú pháp LaTeX chuẩn (ví dụ: \\frac{a}{b}, \\sqrt{x}, \\int_{0}^{1} x dx).
 - Không thêm bất kỳ chữ nào ngoài chuỗi JSON hợp lệ.

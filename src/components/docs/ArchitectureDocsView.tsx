@@ -26,7 +26,7 @@ export const ArchitectureDocsView: React.FC = () => {
 
   const DDL_SNIPPET = `-- DDL PostgreSQL / Supabase Schema rút gọn
 CREATE TYPE user_role AS ENUM ('student', 'teacher', 'admin');
-CREATE TYPE exam_part_type AS ENUM ('part_1_mcq', 'part_2_true_false', 'part_3_short_answer', 'part_4_essay');
+CREATE TYPE exam_part_type AS ENUM ('part_1_mcq', 'part_2_true_false', 'part_3_short_answer');
 
 CREATE TABLE profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,

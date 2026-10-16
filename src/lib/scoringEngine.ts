@@ -1,3 +1,5 @@
+import type { Question } from '../types/math';
+
 /**
  * Bộ công cụ chấm điểm tự động & Chuẩn hóa đáp án Toán THPT
  * Theo định dạng đề thi mới của Bộ Giáo dục & Đào tạo (Áp dụng từ năm 2025)
@@ -62,6 +64,10 @@ export function gradePart2TrueFalse(
   };
 }
 
+export function calculateExamTotalPoints(questions: Question[]): number {
+  return Number(questions.reduce((total, question) => total + question.points, 0).toFixed(2));
+}
+
 /**
  * 2. Kiểm tra tính hợp lệ của câu trả lời ngắn Phần III
  * Quy định BGD:
@@ -102,7 +108,7 @@ export function validatePart3ShortAnswerFormat(rawAnswer: string): {
 }
 
 /**
- * 3. Chuẩn hóa giá trị số học / phân số tự động (Dùng cho Phần III và Phần IV)
+ * 3. Chuẩn hóa giá trị số học / phân số tự động cho câu trả lời ngắn.
  * Thuật toán quy đổi:
  * - Thay thế dấu phẩy thập phân ',' của tiếng Việt thành '.'
  * - Phân tích phân số 'a/b' thành giá trị số thực

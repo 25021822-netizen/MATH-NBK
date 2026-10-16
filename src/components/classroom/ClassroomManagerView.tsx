@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { Classroom, UserProfile, UserRole, Exam, ClassroomChatMessage, ChatMention } from '../../types/math';
+import React, { useMemo, useState, useRef } from 'react';
+import { Classroom, UserProfile, UserRole, Exam, ClassroomChatMessage, ChatMention, ClassroomLesson } from '../../types/math';
 import { SAMPLE_STUDENTS } from '../../data/mockData';
 import {
   Users,
@@ -30,6 +30,7 @@ import {
   UserCheck,
   ShieldAlert,
   Sparkles,
+  Download,
 } from 'lucide-react';
 
 interface ClassroomManagerViewProps {
@@ -42,6 +43,8 @@ interface ClassroomManagerViewProps {
   examsList: Exam[];
   onSelectExamToTake?: (examId: string) => void;
   onViewClassGradebook?: (classId: string) => void;
+  onCreateLessonForClass?: (classId: string) => void;
+  lessons?: ClassroomLesson[];
   allUsers?: UserProfile[];
   classroomMessages?: Record<string, ClassroomChatMessage[]>;
   onSendChatMessage?: (message: ClassroomChatMessage) => void;
@@ -59,6 +62,8 @@ export const ClassroomManagerView: React.FC<ClassroomManagerViewProps> = ({
   examsList,
   onSelectExamToTake,
   onViewClassGradebook,
+  onCreateLessonForClass,
+  lessons = [],
   allUsers = SAMPLE_STUDENTS,
   classroomMessages = {},
   onSendChatMessage,
@@ -66,7 +71,7 @@ export const ClassroomManagerView: React.FC<ClassroomManagerViewProps> = ({
   friendIds = [],
 }) => {
   const [selectedClassId, setSelectedClassId] = useState<string>(classrooms[0]?.id || '');
-  const [activeRightTab, setActiveRightTab] = useState<'chat' | 'students'>('chat');
+  const [activeRightTab, setActiveRightTab] = useState<'chat' | 'students'>('students');
   const [showCreateClassModal, setShowCreateClassModal] = useState<boolean>(false);
   const [showAddStudentModal, setShowAddStudentModal] = useState<boolean>(false);
   const [studentToRemove, setStudentToRemove] = useState<{ id: string; name: string } | null>(null);
@@ -102,6 +107,18 @@ export const ClassroomManagerView: React.FC<ClassroomManagerViewProps> = ({
 
   // Danh sách tin nhắn lớp học hiện tại
   const currentClassMessages = currentClass ? classroomMessages[currentClass.id] || [] : [];
+  const currentClassLessons = useMemo(
+    () => lessons.filter((lesson) => lesson.classId === currentClass?.id),
+    [currentClass?.id, lessons],
+  );
+  const lessonsByChapter = useMemo(() => {
+    const groups = new Map<string, ClassroomLesson[]>();
+    currentClassLessons.forEach((lesson) => {
+      const chapter = lesson.topic.trim() || 'Chưa phân chương';
+      groups.set(chapter, [...(groups.get(chapter) || []), lesson]);
+    });
+    return [...groups.entries()].sort(([chapterA], [chapterB]) => chapterA.localeCompare(chapterB, 'vi'));
+  }, [currentClassLessons]);
 
   // Danh sách học sinh thuộc lớp đang chọn (tra từ allUsers)
   const registeredStudents = allUsers.filter((u) => u.role === 'student');
@@ -390,7 +407,7 @@ export const ClassroomManagerView: React.FC<ClassroomManagerViewProps> = ({
           <p className="text-slate-500 text-xs sm:text-sm mt-1 max-w-xl">
             {userRole === 'teacher'
               ? 'Tạo nhóm lớp, cấp mã vào lớp, trao đổi thảo luận chat trực tiếp kèm gửi ảnh và tag tên học sinh.'
-              : 'Tham gia lớp của thầy cô, chat trao đổi học tập cùng bạn bè, gửi ảnh bài toán và làm đề thi được giao.'}
+              : 'Xem bài học theo chương và hoàn thành đề thi được giáo viên giao cho lớp.'}
           </p>
         </div>
 
@@ -475,10 +492,12 @@ export const ClassroomManagerView: React.FC<ClassroomManagerViewProps> = ({
 
       {/* Selected Classroom Details */}
       {currentClass && (
+        <div className="space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Left Column: Classroom Info & Assigned Exams (5 cols) */}
-          <div className="lg:col-span-5 space-y-6">
+          <div className={`${userRole === 'teacher' ? 'lg:col-span-5' : 'lg:col-span-12'} space-y-6`}>
             {/* Info Card */}
+            {userRole === 'teacher' && (
             <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 shadow-xs">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2">
@@ -551,18 +570,106 @@ export const ClassroomManagerView: React.FC<ClassroomManagerViewProps> = ({
               </div>
 
               {/* Quick Jump to Gradebook for Teachers */}
-              {userRole === 'teacher' && onViewClassGradebook && (
+              {userRole === 'teacher' && (onViewClassGradebook || onCreateLessonForClass) && (
                 <div className="pt-2 border-t border-slate-100">
-                  <button
-                    onClick={() => onViewClassGradebook(currentClass.id)}
-                    className="w-full py-2.5 rounded-2xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center gap-2 border border-blue-200 transition-colors"
-                  >
-                    <BarChart3 size={16} />
-                    <span>Xem Bảng Điểm & Phổ Điểm Lớp Này</span>
-                  </button>
+                  <div className="grid gap-2">
+                    {onCreateLessonForClass && (
+                      <button
+                        onClick={() => onCreateLessonForClass(currentClass.id)}
+                        className="w-full py-2.5 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center justify-center gap-2 border border-emerald-200 transition-colors"
+                      >
+                        <BookOpen size={16} />
+                        <span>Tạo bài học cho lớp này</span>
+                      </button>
+                    )}
+                    {onViewClassGradebook && (
+                      <button
+                        onClick={() => onViewClassGradebook(currentClass.id)}
+                        className="w-full py-2.5 rounded-2xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center gap-2 border border-blue-200 transition-colors"
+                      >
+                        <BarChart3 size={16} />
+                        <span>Xem Bảng Điểm & Phổ Điểm Lớp Này</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
+            )}
+                <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xs">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-100 bg-gradient-to-r from-emerald-50 to-teal-50 px-5 py-5 sm:px-6">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-600 text-white">
+                        <BookOpen size={21} />
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700">Tài liệu giảng dạy</span>
+                        <h3 className="text-lg font-extrabold text-slate-900">Bài Học Theo Chương</h3>
+                      </div>
+                    </div>
+                    <span className="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-emerald-800">{currentClassLessons.length} buổi học</span>
+                  </div>
+                  {currentClassLessons.length === 0 ? (
+                    <div className="p-8 text-center">
+                      <BookOpen size={32} className="mx-auto text-slate-300" />
+                      <p className="mt-2 text-sm font-bold text-slate-700">Nhóm lớp chưa có bài học nào</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {userRole === 'teacher' ? 'Tạo bài học theo chương để học sinh trong lớp xem tại đây.' : 'Bài học giáo viên đăng cho lớp sẽ được tổng hợp tại đây.'}
+                      </p>
+                      {userRole === 'teacher' && onCreateLessonForClass && (
+                        <button
+                          type="button"
+                          onClick={() => onCreateLessonForClass(currentClass.id)}
+                          className="mt-4 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-700"
+                        >
+                          Tạo bài học đầu tiên
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-5 p-4 sm:p-6">
+                      {lessonsByChapter.map(([chapter, chapterLessons]) => (
+                        <section key={chapter} className="overflow-hidden rounded-2xl border border-slate-200">
+                          <div className="flex items-center justify-between gap-3 bg-slate-50 px-4 py-3">
+                            <h4 className="font-extrabold text-slate-900">{chapter}</h4>
+                            <span className="text-xs font-semibold text-slate-500">{chapterLessons.length} buổi</span>
+                          </div>
+                          <div className="divide-y divide-slate-100">
+                            {chapterLessons.map((lesson) => (
+                              <article key={lesson.id} className="space-y-3 p-4">
+                                <div className="flex flex-wrap items-start justify-between gap-2">
+                                  <h5 className="font-bold text-slate-900">{lesson.title}</h5>
+                                  <time className="text-xs text-slate-400">{new Date(lesson.createdAt).toLocaleDateString('vi-VN')}</time>
+                                </div>
+                                <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{lesson.content}</p>
+                                {lesson.summary && (
+                                  <div className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                                    <strong>Tóm tắt buổi học</strong>
+                                    <p className="mt-1 whitespace-pre-wrap">{lesson.summary}</p>
+                                  </div>
+                                )}
+                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                  <span className="text-xs font-semibold text-slate-400">Giáo viên: {lesson.teacherName}</span>
+                                  {lesson.attachment && (
+                                    <a
+                                      href={lesson.attachment.dataUrl}
+                                      download={lesson.attachment.name}
+                                      className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100"
+                                    >
+                                      <FileCheck size={15} />
+                                      {lesson.attachment.name}
+                                      <Download size={14} />
+                                    </a>
+                                  )}
+                                </div>
+                              </article>
+                            ))}
+                          </div>
+                        </section>
+                      ))}
+                    </div>
+                  )}
+                </section>
 
             {/* Assigned Exams Card */}
             <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 shadow-xs">
@@ -635,24 +742,12 @@ export const ClassroomManagerView: React.FC<ClassroomManagerViewProps> = ({
             </div>
           </div>
 
-          {/* Right Column: Tabbed Chat & Student Roster (7 cols) */}
+          {/* Student roster is available to teachers; classroom chat has been removed. */}
+          {userRole === 'teacher' && (
           <div className="lg:col-span-7 bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xs flex flex-col min-h-[600px]">
             {/* Tab switchers header */}
             <div className="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between gap-3 bg-slate-50/50">
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setActiveRightTab('chat')}
-                  className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 transition-all ${
-                    activeRightTab === 'chat'
-                      ? 'bg-blue-600 text-white shadow-xs'
-                      : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200'
-                  }`}
-                >
-                  <MessageSquare size={16} />
-                  <span>Thảo Luận Lớp Học ({currentClassMessages.length})</span>
-                </button>
-
                 <button
                   type="button"
                   onClick={() => setActiveRightTab('students')}
@@ -679,8 +774,8 @@ export const ClassroomManagerView: React.FC<ClassroomManagerViewProps> = ({
               )}
             </div>
 
-            {/* TAB 1: CHAT TRONG NHÓM LỚP (GỬI ẢNH, TAG TÊN) */}
-            {activeRightTab === 'chat' && (
+            {/* Chat was removed; keep the roster as the only classroom panel. */}
+            {false && activeRightTab === 'chat' && (
               <div className="flex-1 flex flex-col p-4 sm:p-6 space-y-4">
                 {/* Chat Message Stream */}
                 <div className="flex-1 overflow-y-auto space-y-4 max-h-[460px] pr-2">
@@ -752,6 +847,7 @@ export const ClassroomManagerView: React.FC<ClassroomManagerViewProps> = ({
                                     </div>
                                   </div>
                                 </div>
+
                               )}
                             </div>
                           </div>
@@ -807,7 +903,7 @@ export const ClassroomManagerView: React.FC<ClassroomManagerViewProps> = ({
                 {attachedImage && (
                   <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-2xl flex items-center justify-between gap-3 animate-in fade-in">
                     <div className="flex items-center gap-3">
-                      <img src={attachedImage} alt="Ảnh chuẩn bị gửi" className="w-12 h-12 object-cover rounded-xl border border-blue-200" />
+                      <img src={attachedImage || undefined} alt="Ảnh chuẩn bị gửi" className="w-12 h-12 object-cover rounded-xl border border-blue-200" />
                       <div>
                         <span className="text-xs font-bold text-blue-900 block">Đã đính kèm ảnh bài tập / hình vẽ</span>
                         <span className="text-[10px] text-blue-600 font-semibold">Sẽ được gửi kèm tin nhắn</span>
@@ -1003,6 +1099,8 @@ export const ClassroomManagerView: React.FC<ClassroomManagerViewProps> = ({
               </div>
             )}
           </div>
+          )}
+        </div>
         </div>
       )}
 
