@@ -230,20 +230,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Zone 3: 1 Primary Action & Context Controls */}
         <div className="flex items-center gap-3 shrink-0">
-          {/* Streak & XP for Students */}
-          {userRole === 'student' && (
-            <div className="hidden lg:flex items-center gap-3 text-xs font-bold tabular-nums">
-              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 rounded-lg text-amber-700 border border-amber-200">
-                <Flame size={16} className="text-amber-600 fill-amber-500" />
-                <span>{streakDays} ngày</span>
-              </div>
-              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 rounded-lg text-blue-700 border border-blue-200">
-                <Zap size={16} className="text-blue-600 fill-blue-500" />
-                <span>{xp} XP</span>
-              </div>
-            </div>
-          )}
-
           {/* Device viewport frame switcher */}
           <div className="hidden sm:flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
             <button

@@ -209,9 +209,17 @@ export interface ClassroomLesson {
   title: string;
   chapter: string; // Chuyên đề / Chương bài học
   description: string;
-  content: string; // Tóm tắt kiến thức, định lý, công thức LaTeX
+  theoryContent: string; // 1. Phần lý thuyết trọng tâm & công thức
+  exercisesContent?: string; // 2. Bài tập bài giảng & ví dụ rèn luyện
+  content?: string; // Tương thích ngược
   teacherName: string;
   createdAt: string;
+  externalLink?: string; // Gắn link tài liệu trực tuyến (Google Drive, Youtube...)
+  pdfAttachment?: {
+    fileName: string;
+    fileSize: string; // Dung lượng (tối đa khoảng 5MB)
+    fileData?: string; // Dữ liệu file PDF Data URL
+  };
   attachments?: {
     name: string;
     type: 'pdf' | 'image' | 'link';

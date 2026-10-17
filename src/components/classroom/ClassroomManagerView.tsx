@@ -82,9 +82,32 @@ export const ClassroomManagerView: React.FC<ClassroomManagerViewProps> = ({
   onSendChatMessage,
   onQuickAddFriend,
   friendIds = [],
+  classroomLessons = SAMPLE_CLASSROOM_LESSONS,
+  onUpdateLessons,
 }) => {
   const [selectedClassId, setSelectedClassId] = useState<string>(classrooms[0]?.id || '');
-  const [activeRightTab, setActiveRightTab] = useState<'chat' | 'students'>('chat');
+  const [activeRightTab, setActiveRightTab] = useState<'curriculum' | 'chat' | 'students'>('curriculum');
+  const [localLessons, setLocalLessons] = useState<ClassroomLesson[]>(classroomLessons || SAMPLE_CLASSROOM_LESSONS);
+  const [showAddLessonModal, setShowAddLessonModal] = useState<boolean>(false);
+  const [selectedLessonDetail, setSelectedLessonDetail] = useState<ClassroomLesson | null>(null);
+  const [lessonActionSuccess, setLessonActionSuccess] = useState<string | null>(null);
+
+  // Form thêm chương / bài học mới (Chương -> Bài học -> Lý thuyết + Bài tập)
+  const [newLessonChapter, setNewLessonChapter] = useState('');
+  const [newLessonTitle, setNewLessonTitle] = useState('');
+  const [newLessonDesc, setNewLessonDesc] = useState('');
+  const [newLessonTheory, setNewLessonTheory] = useState('');
+  const [newLessonExercises, setNewLessonExercises] = useState('');
+  const [newLessonExercisesCount, setNewLessonExercisesCount] = useState<number>(10);
+  const [newLessonExternalLink, setNewLessonExternalLink] = useState('');
+  const [newLessonPdfFile, setNewLessonPdfFile] = useState<{ fileName: string; fileSize: string; fileData: string } | null>(null);
+  const [newLessonAttachmentName, setNewLessonAttachmentName] = useState('');
+  const [newLessonError, setNewLessonError] = useState<string | null>(null);
+
+  // Tab chuyển đổi trong modal xem bài học: 'theory' (Lý thuyết) hoặc 'exercises' (Bài tập bài giảng)
+  const [lessonDetailTab, setLessonDetailTab] = useState<'theory' | 'exercises'>('theory');
+  const lessonPdfInputRef = useRef<HTMLInputElement>(null);
+
   const [showCreateClassModal, setShowCreateClassModal] = useState<boolean>(false);
   const [showAddStudentModal, setShowAddStudentModal] = useState<boolean>(false);
   const [studentToRemove, setStudentToRemove] = useState<{ id: string; name: string } | null>(null);
@@ -122,6 +145,17 @@ export const ClassroomManagerView: React.FC<ClassroomManagerViewProps> = ({
 
   // Danh sách tin nhắn lớp học hiện tại
   const currentClassMessages = currentClass ? classroomMessages[currentClass.id] || [] : [];
+
+  // Danh sách bài học và chương học thuộc lớp đang chọn (Mục lục lớp)
+  const currentClassLessons = currentClass ? localLessons.filter((l) => l.classId === currentClass.id) : [];
+
+  // Nhóm các bài học theo Chương học (Mục lục chuyên đề)
+  const groupedLessons = currentClassLessons.reduce((acc, lesson) => {
+    const ch = lesson.chapter || 'Chuyên đề chung';
+    if (!acc[ch]) acc[ch] = [];
+    acc[ch].push(lesson);
+    return acc;
+  }, {} as Record<string, ClassroomLesson[]>);
 
   // Danh sách học sinh thuộc lớp đang chọn (tra từ allUsers)
   const registeredStudents = allUsers.filter((u) => u.role === 'student');
@@ -287,6 +321,141 @@ export const ClassroomManagerView: React.FC<ClassroomManagerViewProps> = ({
     setExamActionSuccess(`Đã xóa đề "${examToRemoveFromClass.title}" khỏi danh sách giao cho lớp ${currentClass.name}!`);
     setTimeout(() => setExamActionSuccess(null), 4000);
     setExamToRemoveFromClass(null);
+  };
+
+  // Xử lý chọn file PDF (giới hạn dung lượng ~5MB)
+  const handlePdfFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+    if (file.size > MAX_SIZE) {
+      setNewLessonError(`Dung lượng file vượt quá giới hạn 5MB (hiện tại: ${(file.size / (1024 * 1024)).toFixed(2)} MB). Vui lòng chọn file PDF nhỏ hơn 5MB!`);
+      e.target.value = '';
+      return;
+    }
+
+    if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
+      setNewLessonError('Vui lòng chọn file có định dạng PDF!');
+      e.target.value = '';
+      return;
+    }
+
+    setNewLessonError(null);
+    const sizeStr = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+    const reader = new FileReader();
+    reader.onload = () => {
+      setNewLessonPdfFile({
+        fileName: file.name,
+        fileSize: sizeStr,
+        fileData: reader.result as string,
+      });
+      setNewLessonAttachmentName(file.name);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // 3c. Giáo viên tạo / upload Chương học và Bài học mới cho học sinh (Chương -> Bài học -> Lý thuyết + Bài tập)
+  const handleCreateLessonSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentClass) return;
+
+    if (!newLessonChapter.trim() || !newLessonTitle.trim()) {
+      setNewLessonError('Vui lòng nhập đầy đủ tên Chương học và tên Bài học!');
+      return;
+    }
+
+    const attachmentsList = [];
+    if (newLessonPdfFile) {
+      attachmentsList.push({
+        name: newLessonPdfFile.fileName,
+        type: 'pdf' as const,
+        url: newLessonPdfFile.fileData,
+        size: newLessonPdfFile.fileSize,
+      });
+    } else if (newLessonAttachmentName.trim()) {
+      attachmentsList.push({
+        name: newLessonAttachmentName.trim(),
+        type: 'pdf' as const,
+        url: '#',
+        size: '1.8 MB',
+      });
+    }
+
+    if (newLessonExternalLink.trim()) {
+      attachmentsList.push({
+        name: 'Link tài liệu trực tuyến',
+        type: 'link' as const,
+        url: newLessonExternalLink.trim(),
+        size: 'Web',
+      });
+    }
+
+    const newLessonObj: ClassroomLesson = {
+      id: `les_${Date.now()}`,
+      classId: currentClass.id,
+      chapter: newLessonChapter.trim(),
+      title: newLessonTitle.trim(),
+      description: newLessonDesc.trim() || 'Tài liệu lý thuyết và bài tập theo chuẩn chương trình GDPT 2018.',
+      theoryContent:
+        newLessonTheory.trim() ||
+        'Nội dung tóm tắt kiến thức trọng tâm, định lý, công thức và phương pháp giải bài tập.',
+      exercisesContent:
+        newLessonExercises.trim() ||
+        'Hệ thống ví dụ mẫu minh họa và câu hỏi bài tập rèn luyện cho học sinh.',
+      content: newLessonTheory.trim() || newLessonDesc.trim(),
+      teacherName: currentUserName || 'ThS. Trần Văn Minh',
+      createdAt: new Date().toISOString().split('T')[0],
+      exercisesCount: Number(newLessonExercisesCount) || 10,
+      completedStudentIds: [],
+      externalLink: newLessonExternalLink.trim() || undefined,
+      pdfAttachment: newLessonPdfFile || undefined,
+      attachments: attachmentsList.length > 0 ? attachmentsList : undefined,
+    };
+
+    const updated = [newLessonObj, ...localLessons];
+    setLocalLessons(updated);
+    if (onUpdateLessons) {
+      onUpdateLessons(updated);
+    }
+
+    setShowAddLessonModal(false);
+    setLessonActionSuccess(`Đã đăng tải bài học "${newLessonTitle.trim()}" thành công!`);
+    setTimeout(() => setLessonActionSuccess(null), 3500);
+  };
+
+  // 3d. Giáo viên xóa bài học khỏi mục lục lớp
+  const handleDeleteLesson = (lessonId: string, lessonTitle: string) => {
+    const updated = localLessons.filter((l) => l.id !== lessonId);
+    setLocalLessons(updated);
+    if (onUpdateLessons) {
+      onUpdateLessons(updated);
+    }
+    setLessonActionSuccess(`Đã xóa bài học "${lessonTitle}" khỏi mục lục!`);
+    setTimeout(() => setLessonActionSuccess(null), 3000);
+  };
+
+  // 3e. Học sinh đánh dấu hoàn thành bài học
+  const handleToggleCompleteLesson = (lessonId: string) => {
+    const updated = localLessons.map((l) => {
+      if (l.id === lessonId) {
+        const studentList = l.completedStudentIds || [];
+        const isCompleted = studentList.includes(currentUserId);
+        const nextList = isCompleted
+          ? studentList.filter((id) => id !== currentUserId)
+          : [...studentList, currentUserId];
+        return {
+          ...l,
+          completedStudentIds: nextList,
+        };
+      }
+      return l;
+    });
+
+    setLocalLessons(updated);
+    if (onUpdateLessons) {
+      onUpdateLessons(updated);
+    }
   };
 
   // 4. Học sinh tham gia lớp học bằng mã Code (VD: NBK-12A1)
@@ -773,46 +942,287 @@ export const ClassroomManagerView: React.FC<ClassroomManagerViewProps> = ({
           {/* Right Column: Tabbed Chat & Student Roster (7 cols) */}
           <div className="lg:col-span-7 bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xs flex flex-col min-h-[600px]">
             {/* Tab switchers header */}
-            <div className="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between gap-3 bg-slate-50/50">
-              <div className="flex items-center gap-2">
+            <div className="p-3.5 sm:p-5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveRightTab('curriculum')}
+                  className={`px-3 sm:px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all ${
+                    activeRightTab === 'curriculum'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200'
+                  }`}
+                >
+                  <BookOpen size={15} />
+                  <span>Mục Lục & Bài Học ({currentClassLessons.length})</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={() => setActiveRightTab('chat')}
-                  className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 transition-all ${
+                  className={`px-3 sm:px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all ${
                     activeRightTab === 'chat'
                       ? 'bg-blue-600 text-white shadow-xs'
                       : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200'
                   }`}
                 >
-                  <MessageSquare size={16} />
-                  <span>Thảo Luận Lớp Học ({currentClassMessages.length})</span>
+                  <MessageSquare size={15} />
+                  <span>Thảo Luận ({currentClassMessages.length})</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setActiveRightTab('students')}
-                  className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 transition-all ${
+                  className={`px-3 sm:px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all ${
                     activeRightTab === 'students'
                       ? 'bg-blue-600 text-white shadow-xs'
                       : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200'
                   }`}
                 >
-                  <Users size={16} />
-                  <span>Danh Sách Học Sinh ({enrolledStudents.length})</span>
+                  <Users size={15} />
+                  <span>Học Sinh ({enrolledStudents.length})</span>
                 </button>
               </div>
 
-              {/* Add Student button (Teacher Only) */}
-              {userRole === 'teacher' && activeRightTab === 'students' && (
-                <button
-                  onClick={() => setShowAddStudentModal(true)}
-                  className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs border border-blue-200 flex items-center gap-1.5 transition-colors"
-                >
-                  <UserPlus size={14} />
-                  <span>+ Thêm Học Sinh</span>
-                </button>
-              )}
+              {/* Action buttons on the right based on active tab and role */}
+              <div className="flex items-center gap-2">
+                {userRole === 'teacher' && activeRightTab === 'curriculum' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewLessonChapter(
+                        currentClass.grade === 12
+                          ? 'Chương 1: Ứng dụng đạo hàm để khảo sát hàm số'
+                          : 'Chương 1: Hàm số và phương trình lượng giác'
+                      );
+                      setNewLessonTitle('');
+                      setNewLessonDesc('');
+                      setNewLessonTheory('');
+                      setNewLessonExercises('');
+                      setNewLessonExercisesCount(10);
+                      setNewLessonExternalLink('');
+                      setNewLessonPdfFile(null);
+                      setNewLessonAttachmentName('');
+                      setNewLessonError(null);
+                      setShowAddLessonModal(true);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 transition-colors"
+                  >
+                    <FolderPlus size={14} />
+                    <span>+ Thêm Bài Học</span>
+                  </button>
+                )}
+
+                {userRole === 'teacher' && activeRightTab === 'students' && (
+                  <button
+                    onClick={() => setShowAddStudentModal(true)}
+                    className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs border border-blue-200 flex items-center gap-1.5 transition-colors"
+                  >
+                    <UserPlus size={14} />
+                    <span>+ Thêm Học Sinh</span>
+                  </button>
+                )}
+              </div>
             </div>
+
+            {/* TAB 0: MỤC LỤC & BÀI HỌC (GIÁO VIÊN UP CHƯƠNG HỌC & BÀI HỌC CHO HỌC SINH) */}
+            {activeRightTab === 'curriculum' && (
+              <div className="flex-1 flex flex-col p-4 sm:p-6 space-y-4">
+                {/* Notification Toast */}
+                {lessonActionSuccess && (
+                  <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2 animate-in fade-in">
+                    <CheckCircle2 size={16} />
+                    <span>{lessonActionSuccess}</span>
+                  </div>
+                )}
+
+                {/* Banner Tổng Quan Mục Lục */}
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50 via-indigo-50 to-slate-50 border border-blue-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                  <div>
+                    <h4 className="font-extrabold text-blue-900 text-sm flex items-center gap-1.5">
+                      <BookOpen size={16} className="text-blue-600" />
+                      <span>Mục Lục Chương Trình & Chuyên Đề Toán THPT</span>
+                    </h4>
+                    <p className="text-[11px] text-slate-600 mt-0.5">
+                      {userRole === 'teacher'
+                        ? 'Giáo viên xây dựng mục lục, đăng tải lý thuyết, sơ đồ tư duy và tài liệu PDF bài tập cho học sinh.'
+                        : 'Mục lục các chương học và từng bài học do thầy cô phân công. Nhấn vào bài để học và xem tài liệu.'}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="px-2.5 py-1 rounded-xl bg-white text-blue-700 font-bold border border-blue-200 shadow-2xs">
+                      {Object.keys(groupedLessons).length} Chương
+                    </span>
+                    <span className="px-2.5 py-1 rounded-xl bg-white text-blue-700 font-bold border border-blue-200 shadow-2xs">
+                      {currentClassLessons.length} Bài học
+                    </span>
+                  </div>
+                </div>
+
+                {/* Danh Sách Các Chương Học & Từng Bài Học */}
+                {currentClassLessons.length === 0 ? (
+                  <div className="text-center py-12 px-4 rounded-3xl border-2 border-dashed border-slate-200 space-y-3 bg-slate-50/50 my-auto">
+                    <div className="w-14 h-14 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center mx-auto">
+                      <BookOpen size={28} />
+                    </div>
+                    <h5 className="font-extrabold text-sm text-slate-800">Lớp chưa có mục lục bài học nào</h5>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                      {userRole === 'teacher'
+                        ? 'Thầy/Cô hãy bắt đầu tạo chương học và tải lên bài học đầu tiên kèm tài liệu ôn thi.'
+                        : 'Giáo viên chưa đăng tải bài học cho lớp này. Vui lòng quay lại sau!'}
+                    </p>
+                    {userRole === 'teacher' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewLessonChapter(
+                            currentClass.grade === 12
+                              ? 'Chương 1: Ứng dụng đạo hàm để khảo sát hàm số'
+                              : 'Chương 1: Hàm số và phương trình lượng giác'
+                          );
+                          setNewLessonTitle('');
+                          setNewLessonDesc('');
+                          setNewLessonContent('');
+                          setNewLessonExercisesCount(10);
+                          setNewLessonAttachmentName('');
+                          setNewLessonAttachmentUrl('');
+                          setNewLessonError(null);
+                          setShowAddLessonModal(true);
+                        }}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs inline-flex items-center gap-1.5"
+                      >
+                        <FolderPlus size={15} />
+                        <span>+ Tạo Chương & Bài Học Đầu Tiên</span>
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-6 overflow-y-auto max-h-[500px] pr-1">
+                    {Object.entries(groupedLessons).map(([chapterTitle, lessons], chIdx) => (
+                      <div key={chIdx} className="space-y-3">
+                        {/* Tiêu đề chương học */}
+                        <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                          <div className="flex items-center gap-2">
+                            <span className="w-6 h-6 rounded-lg bg-blue-600 text-white font-black text-xs flex items-center justify-center shrink-0">
+                              {chIdx + 1}
+                            </span>
+                            <h5 className="font-black text-sm text-slate-900 tracking-tight">{chapterTitle}</h5>
+                          </div>
+                          <span className="text-[11px] font-bold text-slate-400">
+                            {lessons.length} bài học
+                          </span>
+                        </div>
+
+                        {/* Danh sách từng bài học trong chương */}
+                        <div className="space-y-3 pl-1 sm:pl-3">
+                          {lessons.map((lesson) => {
+                            const isCompleted = lesson.completedStudentIds?.includes(currentUserId);
+                            const hasAttachment = lesson.attachments && lesson.attachments.length > 0;
+
+                            return (
+                              <div
+                                key={lesson.id}
+                                className="p-4 rounded-2xl border border-slate-200 bg-white hover:border-blue-300 transition-all shadow-2xs space-y-3"
+                              >
+                                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                      <h6 className="font-extrabold text-sm text-slate-900">{lesson.title}</h6>
+                                      {isCompleted && (
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">
+                                          <CheckCircle size={11} />
+                                          <span>Đã học</span>
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
+                                      {lesson.description}
+                                    </p>
+                                  </div>
+
+                                  {/* Nút Xem bài & Xóa bài học */}
+                                  <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+                                    <button
+                                      type="button"
+                                      onClick={() => setSelectedLessonDetail(lesson)}
+                                      className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs border border-blue-200 flex items-center gap-1 shadow-2xs transition-colors"
+                                    >
+                                      <Eye size={13} />
+                                      <span>Xem Bài Học</span>
+                                    </button>
+
+                                    {userRole === 'teacher' && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteLesson(lesson.id, lesson.title)}
+                                        className="p-1.5 rounded-xl text-rose-500 hover:bg-rose-50 hover:text-rose-700 transition-colors"
+                                        title="Xóa bài học này khỏi mục lục lớp"
+                                      >
+                                        <Trash2 size={15} />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Thông tin chi tiết: số bài tập, file đính kèm, hoàn thành */}
+                                <div className="flex flex-wrap items-center gap-2 text-[11px] pt-1 border-t border-slate-100">
+                                  <span className="text-slate-500">GV: {lesson.teacherName}</span>
+                                  <span className="text-slate-300">·</span>
+                                  <span className="text-slate-500">Ngày: {lesson.createdAt}</span>
+
+                                  {lesson.exercisesCount !== undefined && lesson.exercisesCount > 0 && (
+                                    <>
+                                      <span className="text-slate-300">·</span>
+                                      <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 font-semibold border border-amber-200">
+                                        {lesson.exercisesCount} bài tập rèn luyện
+                                      </span>
+                                    </>
+                                  )}
+
+                                  {hasAttachment && (
+                                    <>
+                                      <span className="text-slate-300">·</span>
+                                      <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-semibold border border-blue-200 flex items-center gap-1">
+                                        <Paperclip size={11} />
+                                        <span>{lesson.attachments![0].name}</span>
+                                      </span>
+                                    </>
+                                  )}
+
+                                  {userRole === 'student' && (
+                                    <div className="ml-auto">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleToggleCompleteLesson(lesson.id)}
+                                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 ${
+                                          isCompleted
+                                            ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                                            : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200'
+                                        }`}
+                                      >
+                                        <CheckCircle2 size={12} />
+                                        <span>{isCompleted ? 'Hủy đánh dấu' : 'Đánh dấu đã học'}</span>
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  {userRole === 'teacher' && (
+                                    <div className="ml-auto text-slate-500 font-semibold">
+                                      Đã học: {lesson.completedStudentIds?.length || 0} / {enrolledStudents.length} HS
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* TAB 1: CHAT TRONG NHÓM LỚP (GỬI ẢNH, TAG TÊN) */}
             {activeRightTab === 'chat' && (
@@ -1439,6 +1849,285 @@ export const ClassroomManagerView: React.FC<ClassroomManagerViewProps> = ({
                 className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-xs"
               >
                 Xác Nhận Xóa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ========================================================================= */}
+      {/* MODAL 5: GIÁO VIÊN ĐĂNG TẢI CHƯƠNG HỌC & BÀI HỌC MỚI (MỤC LỤC LỚP)        */}
+      {/* ========================================================================= */}
+      {showAddLessonModal && currentClass && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-7 space-y-4 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">
+                  <FolderPlus size={20} />
+                </div>
+                <div>
+                  <h4 className="text-base font-extrabold text-slate-900">
+                    Thêm Chương Học & Bài Học Mới
+                  </h4>
+                  <span className="text-[11px] text-slate-500">
+                    Nhóm lớp: <strong className="text-blue-600">{currentClass.name}</strong> (Khối {currentClass.grade})
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddLessonModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {newLessonError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold flex items-center gap-2">
+                <AlertTriangle size={15} />
+                <span>{newLessonError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleCreateLessonSubmit} className="space-y-4 text-xs">
+              {/* Chọn hoặc nhập Chương học */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-slate-700">Tên Chương học / Chuyên đề *</label>
+                  <span className="text-[10px] text-blue-600 font-semibold">Gợi ý chương GDPT</span>
+                </div>
+                <input
+                  type="text"
+                  list="suggested-chapters"
+                  value={newLessonChapter}
+                  onChange={(e) => setNewLessonChapter(e.target.value)}
+                  placeholder="Ví dụ: Chương 1: Ứng dụng đạo hàm để khảo sát hàm số"
+                  className="w-full h-10 px-3 rounded-xl border border-slate-300 font-semibold focus:border-blue-600 focus:outline-none"
+                  required
+                />
+                <datalist id="suggested-chapters">
+                  <option value="Chương 1: Ứng dụng đạo hàm để khảo sát hàm số" />
+                  <option value="Chương 2: Tọa độ trong không gian Oxyz" />
+                  <option value="Chương 3: Nguyên hàm, Tích phân và Ứng dụng" />
+                  <option value="Chương 4: Các số đặc trưng đo mức độ phân tán của mẫu số liệu ghép nhóm" />
+                  <option value="Chương 5: Xác suất có điều kiện và Công thức Bayes" />
+                  <option value="Chuyên đề: Phương pháp tọa độ hóa giải hình không gian" />
+                </datalist>
+              </div>
+
+              {/* Tên bài học */}
+              <div className="space-y-1">
+                <label className="font-bold text-slate-700">Tên Bài học *</label>
+                <input
+                  type="text"
+                  value={newLessonTitle}
+                  onChange={(e) => setNewLessonTitle(e.target.value)}
+                  placeholder="Ví dụ: Bài 1: Tính đơn điệu và cực trị của hàm số"
+                  className="w-full h-10 px-3 rounded-xl border border-slate-300 font-semibold focus:border-blue-600 focus:outline-none"
+                  required
+                />
+              </div>
+
+              {/* Mô tả ngắn */}
+              <div className="space-y-1">
+                <label className="font-bold text-slate-700">Mô tả tóm tắt nội dung bài học</label>
+                <input
+                  type="text"
+                  value={newLessonDesc}
+                  onChange={(e) => setNewLessonDesc(e.target.value)}
+                  placeholder="Tóm tắt trọng tâm kiến thức và mục tiêu rèn luyện..."
+                  className="w-full h-10 px-3 rounded-xl border border-slate-300 focus:border-blue-600 focus:outline-none"
+                />
+              </div>
+
+              {/* Nội dung lý thuyết & công thức */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-slate-700">Nội dung lý thuyết & công thức Toán (LaTeX)</label>
+                  <span className="text-[10px] text-slate-400">Hỗ trợ $công thức$</span>
+                </div>
+                <textarea
+                  rows={4}
+                  value={newLessonContent}
+                  onChange={(e) => setNewLessonContent(e.target.value)}
+                  placeholder="Nhập kiến thức trọng tâm, định lý, công thức (VD: Cho hàm số y = f(x) có đạo hàm f'(x)...)"
+                  className="w-full p-3 rounded-xl border border-slate-300 font-mono text-xs focus:border-blue-600 focus:outline-none"
+                />
+              </div>
+
+              {/* Số bài tập rèn luyện & Tài liệu đính kèm */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700">Số câu bài tập rèn luyện</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={newLessonExercisesCount}
+                    onChange={(e) => setNewLessonExercisesCount(parseInt(e.target.value) || 0)}
+                    className="w-full h-10 px-3 rounded-xl border border-slate-300 font-bold focus:border-blue-600 focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700">Tên file tài liệu / PDF bài giảng</label>
+                  <input
+                    type="text"
+                    value={newLessonAttachmentName}
+                    onChange={(e) => setNewLessonAttachmentName(e.target.value)}
+                    placeholder="Ví dụ: TaiLieu_DaoHam_12A1.pdf"
+                    className="w-full h-10 px-3 rounded-xl border border-slate-300 focus:border-blue-600 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowAddLessonModal(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <CheckCircle2 size={15} />
+                  <span>Đăng Tải Bài Học Lên Lớp</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 6: XEM CHI TIẾT BÀI HỌC & TÀI LIỆU ÔN TẬP (HỌC SINH & GIÁO VIÊN)    */}
+      {/* ========================================================================= */}
+      {selectedLessonDetail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 space-y-5 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-100">
+              <div className="space-y-1">
+                <span className="px-2.5 py-0.5 rounded-md bg-blue-50 text-blue-700 font-bold text-[11px] uppercase tracking-wider inline-block">
+                  {selectedLessonDetail.chapter}
+                </span>
+                <h3 className="text-lg font-black text-slate-900">{selectedLessonDetail.title}</h3>
+                <div className="flex items-center gap-3 text-xs text-slate-400">
+                  <span>Giáo viên: {selectedLessonDetail.teacherName}</span>
+                  <span>·</span>
+                  <span>Ngày đăng: {selectedLessonDetail.createdAt}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedLessonDetail(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Mô tả */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-700 leading-relaxed">
+              <span className="font-bold text-slate-900 block mb-1">Mục tiêu bài học:</span>
+              {selectedLessonDetail.description}
+            </div>
+
+            {/* Nội dung lý thuyết & công thức */}
+            <div className="space-y-2">
+              <h4 className="font-extrabold text-xs text-slate-800 uppercase tracking-wide">
+                Nội Dung Lý Thuyết & Công Thức Trọng Tâm:
+              </h4>
+              <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-3 text-xs text-slate-800 leading-relaxed font-sans whitespace-pre-wrap">
+                {selectedLessonDetail.content}
+              </div>
+            </div>
+
+            {/* Tài liệu đính kèm */}
+            {selectedLessonDetail.attachments && selectedLessonDetail.attachments.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="font-extrabold text-xs text-slate-800 uppercase tracking-wide">
+                  Tài Liệu & Sơ Đồ Đính Kèm:
+                </h4>
+                <div className="space-y-2">
+                  {selectedLessonDetail.attachments.map((att, attIdx) => (
+                    <div
+                      key={attIdx}
+                      className="p-3 rounded-2xl bg-blue-50/70 border border-blue-200 flex items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0">
+                          <Paperclip size={15} />
+                        </div>
+                        <div>
+                          <span className="font-bold text-blue-900 block">{att.name}</span>
+                          <span className="text-[11px] text-blue-600">
+                            {att.type.toUpperCase()} · Dung lượng {att.size || '1.8 MB'}
+                          </span>
+                        </div>
+                      </div>
+                      <a
+                        href={att.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-3 py-1.5 rounded-xl bg-white text-blue-700 font-bold text-xs border border-blue-200 hover:bg-blue-100 flex items-center gap-1.5 transition-colors shadow-2xs"
+                      >
+                        <Download size={13} />
+                        <span>Tải Tài Liệu</span>
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Footer action */}
+            <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-100">
+              {userRole === 'student' ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleToggleCompleteLesson(selectedLessonDetail.id);
+                    setSelectedLessonDetail((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            completedStudentIds: prev.completedStudentIds?.includes(currentUserId)
+                              ? prev.completedStudentIds.filter((id) => id !== currentUserId)
+                              : [...(prev.completedStudentIds || []), currentUserId],
+                          }
+                        : null
+                    );
+                  }}
+                  className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-xs transition-colors ${
+                    selectedLessonDetail.completedStudentIds?.includes(currentUserId)
+                      ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  }`}
+                >
+                  <CheckCircle2 size={16} />
+                  <span>
+                    {selectedLessonDetail.completedStudentIds?.includes(currentUserId)
+                      ? 'Đã Đánh Dấu Hoàn Thành'
+                      : 'Đánh Dấu Đã Học Xong (+25 XP)'}
+                  </span>
+                </button>
+              ) : (
+                <span className="text-xs text-slate-500 font-semibold">
+                  {selectedLessonDetail.completedStudentIds?.length || 0} học sinh đã học bài này
+                </span>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setSelectedLessonDetail(null)}
+                className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
+              >
+                Đóng
               </button>
             </div>
           </div>

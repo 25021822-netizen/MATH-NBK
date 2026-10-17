@@ -928,32 +928,48 @@ export const SAMPLE_CLASSROOM_LESSONS: ClassroomLesson[] = [
     title: 'Chuyên đề 1: Cực trị hàm số chứa dấu giá trị tuyệt đối',
     chapter: 'Chương 1: Ứng dụng đạo hàm khảo sát hàm số',
     description: 'Phương pháp đếm nhanh số điểm cực trị của hàm $g(x) = |f(x)|$ và $g(x) = f(|x|)$.',
-    content: `### 1. Lý thuyết trọng tâm
+    theoryContent: `### 1. Định lý và Công thức trọng tâm:
 - Cho hàm số $y = f(x)$ có đạo hàm liên tục trên $\\mathbb{R}$.
-- Số điểm cực trị của hàm $y = |f(x)|$ bằng $m + n$, trong đó:
-  + $m$: số điểm cực trị của hàm số $y = f(x)$.
-  + $n$: số nghiệm bội lẻ (đơn) của phương trình $f(x) = 0$.
-- Đồ thị $y = |f(x)|$ được suy ra bằng cách: giữ nguyên phần đồ thị phía trên trục hoành $Ox$, lấy đối xứng phần đồ thị phía dưới qua trục $Ox$.
+- Số điểm cực trị của hàm số $y = |f(x)|$ bằng $m + n$, trong đó:
+  + $m$: số điểm cực trị của hàm số $y = f(x)$ ban đầu (nghiệm bội lẻ của $f'(x) = 0$).
+  + $n$: số nghiệm đơn hoặc nghiệm bội lẻ của phương trình $f(x) = 0$.
+- Quy tắc suy đồ thị $y = |f(x)|$:
+  + Giữ nguyên phần đồ thị hàm số $y = f(x)$ nằm phía trên trục hoành $Ox$.
+  + Lấy đối xứng phần đồ thị nằm phía dưới trục hoành qua trục $Ox$, sau đó bỏ phần đồ thị phía dưới.
 
-### 2. Ví dụ áp dụng
-Cho $f(x) = x^3 - 3x^2 + 2$. Tìm số cực trị của hàm $y = |f(x)|$.
-- $f'(x) = 3x^2 - 6x = 0 \\Leftrightarrow x = 0$ hoặc $x = 2$ ($m = 2$).
-- $f(x) = 0 \\Leftrightarrow (x-1)(x^2-2x-2)=0 \\Rightarrow 3$ nghiệm phân biệt ($n = 3$).
-- Kết luận: hàm số $y = |f(x)|$ có $2 + 3 = 5$ điểm cực trị.`,
+### 2. Dạng hàm $y = f(|x|)$:
+- Là hàm số chẵn, đồ thị nhận trục tung $Oy$ làm trục đối xứng.
+- Số điểm cực trị bằng $2k + 1$, trong đó $k$ là số điểm cực trị dương của hàm số $y = f(x)$.`,
+    exercisesContent: `### 1. Bài tập ví dụ mẫu minh họa:
+**Ví dụ 1:** Cho hàm số bậc ba $f(x) = x^3 - 3x^2 + 2$. Tìm số điểm cực trị của hàm số $g(x) = |f(x)|$.
+*Lời giải:*
+- Đạo hàm $f'(x) = 3x^2 - 6x = 0 \\Leftrightarrow x = 0$ hoặc $x = 2$. Suy ra $f(x)$ có $m = 2$ điểm cực trị.
+- Xét phương trình $f(x) = 0 \\Leftrightarrow x^3 - 3x^2 + 2 = 0 \\Leftrightarrow (x - 1)(x^2 - 2x - 2) = 0$.
+  Phương trình có 3 nghiệm phân biệt $x = 1, x = 1 \\pm \\sqrt{3}$ (đều là nghiệm đơn, $n = 3$).
+- Vậy số điểm cực trị của hàm $g(x) = |f(x)|$ là $m + n = 2 + 3 = 5$.
+
+**Ví dụ 2:** Cho hàm số $y = f(x)$ có bảng biến thiên với 2 điểm cực trị dương $x_1 = 1, x_2 = 4$. Hỏi hàm số $y = f(|x|)$ có bao nhiêu điểm cực trị?
+*Lời giải:* Do $k = 2$ điểm cực trị dương nên hàm số $y = f(|x|)$ có $2k + 1 = 2(2) + 1 = 5$ điểm cực trị.
+
+### 2. Bài tập tự luyện rèn luyện:
+- Bài 1: Cho hàm số $f(x) = x^4 - 4x^2 + 3$. Đếm số cực trị của hàm số $y = |f(x)|$.
+- Bài 2: Tìm $m$ để hàm số $y = |x^3 - 3x + m|$ có đúng 3 điểm cực trị.
+- Bài 3: Cho hàm số $f(x)$ có đồ thị như hình vẽ. Xác định số điểm cực trị của $g(x) = f(|x| + 1)$.`,
+    content: 'Xem chi tiết ở tab Lý thuyết và Bài tập bài giảng.',
     teacherName: 'ThS. Trần Văn Minh',
     createdAt: '2026-10-10',
+    externalLink: 'https://drive.google.com/file/d/1A_xY9SampleMathDriveLink12A1/view',
+    pdfAttachment: {
+      fileName: 'ChuyenDe1_CucTri_TriTuyetDoi_12A1.pdf',
+      fileSize: '3.4 MB',
+      fileData: '#',
+    },
     attachments: [
       {
-        name: 'ChuyenDe1_CucTri_TriTuyetDoi_NBK.pdf',
+        name: 'ChuyenDe1_CucTri_TriTuyetDoi_12A1.pdf',
         type: 'pdf',
         url: '#',
-        size: '1.4 MB',
-      },
-      {
-        name: 'SoDoTuDuy_DaoHam_12A1.png',
-        type: 'image',
-        url: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=600&auto=format&fit=crop&q=80',
-        size: '520 KB',
+        size: '3.4 MB',
       },
     ],
     exercisesCount: 15,
@@ -965,21 +981,45 @@ Cho $f(x) = x^3 - 3x^2 + 2$. Tìm số cực trị của hàm $y = |f(x)|$.
     title: 'Chuyên đề 2: Tọa độ hóa Oxyz giải bài toán khoảng cách và góc',
     chapter: 'Chương 2: Phương pháp tọa độ trong không gian',
     description: 'Kỹ thuật gắn hệ trục tọa độ Oxyz vào khối đa diện (chóp, lăng trụ) để giải quyết bài toán tính khoảng cách điểm đến mặt phẳng.',
-    content: `### 1. Phương pháp tọa độ hóa
-- Chọn gốc tọa độ $O$: thường chọn đỉnh có góc vuông (hoặc chân đường cao của hình chóp/lăng trụ).
-- Xác định 3 trục $Ox, Oy, Oz$ đôi một vuông góc.
-- Viết tọa độ các đỉnh của khối đa diện.
-- Lập phương trình mặt phẳng $(P): Ax + By + Cz + D = 0$.
-- Áp dụng công thức khoảng cách từ $M(x_0, y_0, z_0)$ đến $(P)$:
-  $$d(M, (P)) = \\frac{|Ax_0 + By_0 + Cz_0 + D|}{\\sqrt{A^2 + B^2 + C^2}}$$`,
+    theoryContent: `### 1. Phương pháp tọa độ hóa hình không gian:
+- Chọn gốc tọa độ $O$: Thường chọn đỉnh có 3 đường đôi một vuông góc (tam diện vuông) hoặc chân đường cao của hình chóp/lăng trụ.
+- Chọn 3 tia vuông góc làm các trục $Ox, Oy, Oz$.
+- Xác định tọa độ các đỉnh chính của khối đa diện dựa vào kích thước hình học bài toán cho.
+
+### 2. Các công thức tọa độ trọng tâm:
+- Vectơ pháp tuyến mặt phẳng $(P)$ qua 3 điểm $A, B, C$: $\\vec{n} = [\\vec{AB}, \\vec{AC}]$.
+- Khoảng cách từ điểm $M(x_0, y_0, z_0)$ đến mặt phẳng $(P): Ax + By + Cz + D = 0$:
+  $$d(M, (P)) = \\frac{|Ax_0 + By_0 + Cz_0 + D|}{\\sqrt{A^2 + B^2 + C^2}}$$
+- Góc giữa đường thẳng $d$ có VTCP $\\vec{u}$ và mặt phẳng $(P)$ có VTPT $\\vec{n}$:
+  $$\\sin(d, (P)) = \\frac{|\\vec{u} \\cdot \\vec{n}|}{|\\vec{u}| \\cdot |\\vec{n}|}$$`,
+    exercisesContent: `### 1. Bài tập ví dụ mẫu:
+**Ví dụ 1:** Cho hình chóp $S.ABC$ có đáy $ABC$ vuông tại $B, AB = a, BC = a\\sqrt{3}$. Cạnh bên $SA \\perp (ABC)$ và $SA = 2a$. Tính khoảng cách từ $A$ đến mặt phẳng $(SBC)$.
+*Lời giải tọa độ hóa:*
+- Chọn gốc $B(0,0,0)$, trục $BA$ nằm trên tia $Ox \\Rightarrow A(a, 0, 0)$, trục $BC$ trên tia $Oy \\Rightarrow C(0, a\\sqrt{3}, 0)$.
+- Trục $Oz$ qua $B$ song song $SA$. Do $A(a,0,0)$ nên $S(a, 0, 2a)$.
+- Vectơ $\\vec{BC} = (0, a\\sqrt{3}, 0), \\vec{BS} = (a, 0, 2a)$.
+- VTPT của $(SBC)$ là $\\vec{n} = [\\vec{BC}, \\vec{BS}] = (2a^2\\sqrt{3}, 0, -a^2\\sqrt{3})$. Rút gọn $\\vec{n}_0 = (2, 0, -1)$.
+- Phương trình $(SBC)$ qua $B(0,0,0)$: $2x - z = 0$.
+- Khoảng cách $d(A, (SBC)) = \\frac{|2(a) - 0|}{\\sqrt{2^2 + (-1)^2}} = \\frac{2a}{\\sqrt{5}} = \\frac{2a\\sqrt{5}}{5}$.
+
+### 2. Bài tập tự luyện:
+- Bài 1: Cho hình lập phương $ABCD.A'B'C'D'$ cạnh $a$. Tính góc giữa $AC'$ và mặt phẳng $(A'BD)$.
+- Bài 2: Cho lăng trụ đứng $ABC.A'B'C'$ có đáy là tam giác đều cạnh $a$, $AA' = a\\sqrt{2}$. Tính khoảng cách giữa hai đường thẳng chéo nhau $AB'$ và $BC'$.`,
+    content: 'Xem chi tiết ở tab Lý thuyết và Bài tập bài giảng.',
     teacherName: 'ThS. Trần Văn Minh',
     createdAt: '2026-10-12',
+    externalLink: 'https://youtu.be/sampleMathVideoOxyzLecture12',
+    pdfAttachment: {
+      fileName: 'KyThuat_ToaDoHoa_Oxyz_12A1.pdf',
+      fileSize: '4.1 MB',
+      fileData: '#',
+    },
     attachments: [
       {
-        name: 'KyThuat_ToaDoHoa_Oxyz.pdf',
+        name: 'KyThuat_ToaDoHoa_Oxyz_12A1.pdf',
         type: 'pdf',
         url: '#',
-        size: '2.1 MB',
+        size: '4.1 MB',
       },
     ],
     exercisesCount: 12,
@@ -991,19 +1031,39 @@ Cho $f(x) = x^3 - 3x^2 + 2$. Tìm số cực trị của hàm $y = |f(x)|$.
     title: 'Chuyên đề 1: Phương trình lượng giác biến đổi về bậc hai',
     chapter: 'Chương 1: Hàm số và phương trình lượng giác',
     description: 'Các dạng phương trình lượng giác đưa về dạng thuần nhất bậc hai hoặc đặt ẩn phụ $t = \\sin x \\pm \\cos x$.',
-    content: `### Phương pháp đặt ẩn phụ đối xứng
+    theoryContent: `### Phương pháp đặt ẩn phụ đối xứng:
 - Dạng phương trình: $a(\\sin x \\pm \\cos x) + b\\sin x \\cos x + c = 0$.
 - Đặt $t = \\sin x + \\cos x = \\sqrt{2}\\sin(x + \\frac{\\pi}{4})$. Điều kiện $|t| \\le \\sqrt{2}$.
 - Ta có $t^2 = 1 + 2\\sin x\\cos x \\Rightarrow \\sin x\\cos x = \\frac{t^2 - 1}{2}$.
-- Thay vào phương trình ban đầu ta được phương trình bậc hai theo $t$.`,
+- Thay vào phương trình ban đầu ta được phương trình bậc hai theo $t$:
+  $$at + b\\frac{t^2-1}{2} + c = 0$$
+- Giải tìm nghiệm $t \\in [-\\sqrt{2}; \\sqrt{2}]$, từ đó suy ra nghiệm $x$.`,
+    exercisesContent: `### 1. Bài tập ví dụ mẫu:
+**Ví dụ 1:** Giải phương trình $\\sin x + \\cos x - 2\\sin x\\cos x - 1 = 0$.
+*Lời giải:*
+- Đặt $t = \\sin x + \\cos x, |t| \\le \\sqrt{2}$. Phương trình trở thành:
+  $t - (t^2 - 1) - 1 = 0 \\Leftrightarrow -t^2 + t = 0 \\Leftrightarrow t = 0$ (nhận) hoặc $t = 1$ (nhận).
+- Với $t = 0 \\Leftrightarrow \\sqrt{2}\\sin(x + \\pi/4) = 0 \\Leftrightarrow x = -\\pi/4 + k\\pi$.
+- Với $t = 1 \\Leftrightarrow \\sqrt{2}\\sin(x + \\pi/4) = 1 \\Leftrightarrow \\sin(x + \\pi/4) = \\frac{\\sqrt{2}}{2} \\Rightarrow x = k2\\pi$ hoặc $x = \\pi/2 + k2\\pi$.
+
+### 2. Bài tập tự luyện:
+- Bài 1: Giải phương trình $2(\\sin x - \\cos x) + 3\\sin 2x = 2$.
+- Bài 2: Tìm $m$ để phương trình $\\sin 2x - 2\\sqrt{2}(\\sin x + \\cos x) + 2m - 1 = 0$ có nghiệm.`,
+    content: 'Xem chi tiết ở tab Lý thuyết và Bài tập bài giảng.',
     teacherName: 'ThS. Trần Văn Minh',
     createdAt: '2026-10-11',
+    externalLink: 'https://drive.google.com/drive/folders/sampleLuongGiac11',
+    pdfAttachment: {
+      fileName: 'LuongGiac_11B2_ChuyenDe.pdf',
+      fileSize: '2.8 MB',
+      fileData: '#',
+    },
     attachments: [
       {
         name: 'LuongGiac_11B2_ChuyenDe.pdf',
         type: 'pdf',
         url: '#',
-        size: '1.8 MB',
+        size: '2.8 MB',
       },
     ],
     exercisesCount: 10,

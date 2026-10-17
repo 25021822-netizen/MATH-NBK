@@ -322,7 +322,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                     <th className="px-6 py-3">Mã ID Hệ Thống</th>
                     <th className="px-6 py-3">Vai Trò / Khối</th>
                     <th className="px-6 py-3">Gói Cước</th>
-                    <th className="px-6 py-3">Điểm XP</th>
+                    <th className="px-6 py-3">Trạng Thái</th>
                     <th className="px-6 py-3 text-right">Thao Tác</th>
                   </tr>
                 </thead>
@@ -364,8 +364,10 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="font-bold text-amber-600">{u.xp} XP</span>
-                        <span className="text-slate-400 ml-2">({u.streakDays} ngày)</span>
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <CheckCircle2 size={12} className="text-emerald-600" />
+                          <span>Hoạt động</span>
+                        </span>
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button

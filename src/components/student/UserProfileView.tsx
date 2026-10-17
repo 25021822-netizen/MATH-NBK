@@ -22,6 +22,7 @@ import {
   BarChart3,
   Camera,
   Share2,
+  Lock,
 } from 'lucide-react';
 
 interface UserProfileViewProps {
@@ -87,11 +88,11 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
     e.preventDefault();
     const updated: UserProfile = {
       ...userProfile,
-      name: name.trim(),
+      name: userProfile.name, // Cố định theo quy định, không cho phép sửa họ tên
       email: email.trim(),
       phone: phone.trim(),
       schoolName: schoolName.trim(),
-      grade: grade,
+      grade: userProfile.grade, // Cố định theo quy định, không cho phép sửa khối lớp
       subject: subject.trim(),
       bio: bio.trim(),
       avatar: avatarUrl.trim(),
@@ -216,50 +217,51 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
               <span className="text-[10px] text-slate-400 font-semibold">Đang theo học</span>
             </div>
             <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
-              <span className="text-[11px] font-bold text-slate-400 block uppercase">Chuỗi Giảng Dạy</span>
-              <span className="text-2xl font-black text-amber-500 font-mono mt-1 block">
-                {userProfile.streakDays} ngày
+              <span className="text-[11px] font-bold text-slate-400 block uppercase">Đề Thi Đã Giao</span>
+              <span className="text-2xl font-black text-amber-600 font-mono mt-1 block">
+                {myClassrooms.reduce((acc, c) => acc + c.assignedExamIds.length, 0)}
               </span>
-              <span className="text-[10px] text-amber-600 font-semibold">Tương tác liên tục</span>
+              <span className="text-[10px] text-amber-700 font-semibold">Bài tập trên lớp</span>
             </div>
             <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
-              <span className="text-[11px] font-bold text-slate-400 block uppercase">Điểm Cống Hiến</span>
-              <span className="text-2xl font-black text-blue-600 font-mono mt-1 block">
-                {userProfile.xp} XP
+              <span className="text-[11px] font-bold text-slate-400 block uppercase">Trạng Thái Giảng Dạy</span>
+              <span className="text-base font-extrabold text-blue-600 mt-2 block">
+                Đang Giảng Dạy
               </span>
-              <span className="text-[10px] text-blue-500 font-semibold">Giáo viên tích cực</span>
+              <span className="text-[10px] text-blue-500 font-semibold">Tổ Toán THPT</span>
             </div>
           </>
         ) : (
           <>
             <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
-              <span className="text-[11px] font-bold text-slate-400 block uppercase">Điểm Tích Lũy</span>
-              <span className="text-2xl font-black text-blue-600 font-mono mt-1 block">
-                {userProfile.xp} XP
-              </span>
-              <span className="text-[10px] text-blue-500 font-semibold">Thứ hạng: Cao thủ</span>
-            </div>
-            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
-              <span className="text-[11px] font-bold text-slate-400 block uppercase">Chuỗi Streak</span>
-              <span className="text-2xl font-black text-amber-500 font-mono mt-1 block flex items-center gap-1">
-                <Flame size={20} className="fill-amber-500" />
-                <span>{userProfile.streakDays}</span>
-              </span>
-              <span className="text-[10px] text-amber-600 font-semibold">Ngày học liên tục</span>
-            </div>
-            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
               <span className="text-[11px] font-bold text-slate-400 block uppercase">Đề Thi Đã Nộp</span>
               <span className="text-2xl font-black text-slate-900 font-mono mt-1 block">
                 {mySubmissions.length}
               </span>
-              <span className="text-[10px] text-slate-400 font-semibold">Điểm TB: {avgScore}</span>
+              <span className="text-[10px] text-blue-600 font-semibold">Điểm TB: {avgScore} / 10</span>
             </div>
             <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
-              <span className="text-[11px] font-bold text-slate-400 block uppercase">Quét Bài Tập</span>
+              <span className="text-[11px] font-bold text-slate-400 block uppercase">Tỉ Lệ Đạt Điểm Khá/Giỏi</span>
+              <span className="text-2xl font-black text-indigo-600 font-mono mt-1 block">
+                {mySubmissions.length > 0
+                  ? `${Math.round((mySubmissions.filter((s) => s.score >= 6.5).length / mySubmissions.length) * 100)}%`
+                  : '100%'}
+              </span>
+              <span className="text-[10px] text-indigo-500 font-semibold">Mục tiêu thi THPT</span>
+            </div>
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+              <span className="text-[11px] font-bold text-slate-400 block uppercase">Quét Bài Tập AI</span>
               <span className="text-2xl font-black text-emerald-600 font-mono mt-1 block">
-                {userProfile.dailyScanCount}
+                {userProfile.dailyScanCount}/{userProfile.maxDailyScans}
               </span>
               <span className="text-[10px] text-emerald-700 font-semibold">Lượt hôm nay</span>
+            </div>
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+              <span className="text-[11px] font-bold text-slate-400 block uppercase">Hồ Sơ Học Tập</span>
+              <span className="text-base font-extrabold text-purple-600 mt-2 block">
+                Khối {userProfile.grade} THPT
+              </span>
+              <span className="text-[10px] text-purple-500 font-semibold">Chính thức</span>
             </div>
           </>
         )}
@@ -296,15 +298,28 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
 
         {/* Grid Inputs */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+          {/* Họ và tên: Cố định theo quy định bảo mật GDPT, KHÔNG CHO PHÉP SỬA */}
           <div className="space-y-1">
-            <label className="font-bold text-slate-700">Họ và tên *</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full h-11 px-3.5 rounded-xl border border-slate-300 font-semibold focus:border-blue-600 focus:outline-none"
-              required
-            />
+            <div className="flex items-center justify-between">
+              <label className="font-bold text-slate-700">Họ và tên *</label>
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                <Lock size={10} />
+                <span>Không cho phép sửa</span>
+              </span>
+            </div>
+            <div className="relative">
+              <input
+                type="text"
+                value={userProfile.name}
+                readOnly
+                disabled
+                className="w-full h-11 px-3.5 pr-9 rounded-xl border border-slate-300 bg-slate-100/90 text-slate-800 font-bold cursor-not-allowed select-none shadow-inner"
+              />
+              <Lock size={15} className="absolute right-3 top-3 text-slate-400" />
+            </div>
+            <p className="text-[10px] text-slate-400">
+              Họ và tên được định danh cố định theo hồ sơ đăng ký học sinh / giáo viên.
+            </p>
           </div>
 
           <div className="space-y-1">
@@ -339,10 +354,19 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
             />
           </div>
 
+          {/* Khối Lớp Đang Học: Cố định theo niên khóa học sinh, KHÔNG CHO PHÉP SỬA */}
           <div className="space-y-1">
-            <label className="font-bold text-slate-700">
-              {isTeacher ? 'Tổ Bộ Môn / Khối Phụ Trách' : 'Khối Lớp Đang Học *'}
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="font-bold text-slate-700">
+                {isTeacher ? 'Tổ Bộ Môn / Khối Phụ Trách' : 'Khối Lớp Đang Học *'}
+              </label>
+              {!isTeacher && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                  <Lock size={10} />
+                  <span>Không cho phép sửa</span>
+                </span>
+              )}
+            </div>
             {isTeacher ? (
               <input
                 type="text"
@@ -351,15 +375,21 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
                 className="w-full h-11 px-3.5 rounded-xl border border-slate-300 font-semibold focus:border-blue-600 focus:outline-none"
               />
             ) : (
-              <select
-                value={grade}
-                onChange={(e) => setGrade(Number(e.target.value) as any)}
-                className="w-full h-11 px-3.5 rounded-xl border border-slate-300 font-semibold bg-white focus:border-blue-600 focus:outline-none"
-              >
-                <option value={12}>Lớp 12 (Chương trình GDPT 2018)</option>
-                <option value={11}>Lớp 11 (Chương trình GDPT 2018)</option>
-                <option value={10}>Lớp 10 (Chương trình GDPT 2018)</option>
-              </select>
+              <div className="space-y-1">
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={`Khối Lớp ${userProfile.grade} (Chương trình chuẩn GDPT 2018)`}
+                    readOnly
+                    disabled
+                    className="w-full h-11 px-3.5 pr-9 rounded-xl border border-slate-300 bg-slate-100/90 text-slate-800 font-bold cursor-not-allowed select-none shadow-inner"
+                  />
+                  <Lock size={15} className="absolute right-3 top-3 text-slate-400" />
+                </div>
+                <p className="text-[10px] text-slate-400">
+                  Khối học được xếp cố định theo lớp và niên khóa của học sinh trong trường.
+                </p>
+              </div>
             )}
           </div>
 
